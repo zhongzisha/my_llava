@@ -58,7 +58,6 @@ def main(args):
     image_size = image.size
     # Similar operation in model_worker.py 
     image_tensor = process_anyres_image(image, image_processor, model.config.image_grid_pinpoints)
-    print('image_tensor', image_tensor.shape)
     if type(image_tensor) is list:
         image_tensor = [image.to(model.device, dtype=torch.float16) for image in image_tensor]
     else:
@@ -76,7 +75,6 @@ def main(args):
         print(f"{conv.roles[1]}: ", end="")
 
         if image is not None:
-            # first message
             inp = DEFAULT_IMAGE_TOKEN + '\n' + inp
             image = None
         
@@ -86,11 +84,10 @@ def main(args):
         prompt = tokenizer.apply_chat_template(
             messages,
             tokenize=False,
-            add_generation_prompt=True
+            add_generation_prompt=False
         )
 
         input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).to(model.device)
-        print('input_ids', input_ids.shape)
         streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
 
         with torch.inference_mode():
@@ -104,9 +101,11 @@ def main(args):
                 top_k=args.top_k,
                 max_new_tokens=args.max_new_tokens,
                 pad_token_id=tokenizer.pad_token_id,
-                eos_token_id=terminators, no_repeat_ngram_size=2,
+                eos_token_id=terminators,
+                no_repeat_ngram_size=2,
                 streamer=streamer,
-                use_cache=True) 
+                # use_cache=True
+            ) 
 
         outputs = tokenizer.decode(output_ids[0]).strip()
         messages.append({'role': conv.roles[1], 'content': outputs})

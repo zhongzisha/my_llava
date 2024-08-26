@@ -433,7 +433,7 @@ def preprocess_llama_3(
             tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
-                add_generation_prompt=True
+                add_generation_prompt=False
             ))
     if has_image:
         input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
@@ -516,7 +516,7 @@ def preprocess_llama_3_1(
             tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
-                add_generation_prompt=True
+                add_generation_prompt=False
             ))
     if has_image:
         input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
@@ -603,7 +603,7 @@ def preprocess_gemma_2(
             tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
-                add_generation_prompt=True
+                add_generation_prompt=False
             ))
     if has_image:
         input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
@@ -687,7 +687,7 @@ def preprocess_qwen_2(
             tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
-                add_generation_prompt=True
+                add_generation_prompt=False
             ))
     if has_image:
         input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
@@ -3139,7 +3139,7 @@ def test_deepseek():
     messages = [
         {"role": "user", "content": "Write a piece of quicksort code in C++"}
     ]
-    input_tensor = tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
+    input_tensor = tokenizer.apply_chat_template(messages, add_generation_prompt=False, return_tensors="pt")
     outputs = model.generate(input_tensor.to(model.device), max_new_tokens=100)
 
     result = tokenizer.decode(outputs[0][input_tensor.shape[1]:], skip_special_tokens=True)
@@ -3166,7 +3166,7 @@ def test_qwen2():
     text = tokenizer.apply_chat_template(
         messages,
         tokenize=False,
-        add_generation_prompt=True
+        add_generation_prompt=False
     )
     model_inputs = tokenizer([text], return_tensors="pt").to(device)
 
@@ -3292,7 +3292,7 @@ def eval():
                 prompt = self.tokenizer.apply_chat_template(
                     messages,
                     tokenize=False,
-                    add_generation_prompt=True
+                    add_generation_prompt=False
                 )
                 if index == 0:
                     print(prompt)

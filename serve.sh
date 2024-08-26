@@ -54,7 +54,7 @@ python serve_cli.py \
     --cache_dir "/data/zhongz2/data/cache_dir/" \
     --attn_implementation "flash_attention_2" \
     --device "cuda" \
-    --debug --max-new-tokens 512 --temperature 0.8 --repetition_penalty 1.05 --top_p 0.8 --top_k 50
+    --max-new-tokens 512 --temperature 0.9 --repetition_penalty 1.05 --top_p 0.8 --top_k 20
 
 # Mac
 python serve_cli.py \

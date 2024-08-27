@@ -146,7 +146,7 @@ def add_text(state, text, image, image_process_mode, request: gr.Request):
     return (state, state.to_gradio_chatbot(), "", None) + (disable_btn,) * 5
 
 
-def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request: gr.Request):
+def http_bot(state, model_selector, temperature, top_p, top_k, max_new_tokens, request: gr.Request):
     logger.info(f"http_bot. ip: {request.client.host}")
     start_tstamp = time.time()
     model_name = model_selector
@@ -198,6 +198,7 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
         "prompt": prompt,
         "temperature": float(temperature),
         "top_p": float(top_p),
+        "top_k": int(top_k),
         "max_new_tokens": min(int(max_new_tokens), 1536),
         "stop": state.sep if state.sep_style in [SeparatorStyle.SINGLE, SeparatorStyle.MPT] else state.sep2,
         "images": f'List of {len(state.get_images())} images: {all_image_hash}',
@@ -312,6 +313,7 @@ def build_demo(embed_mode, cur_dir=None, concurrency_count=10):
                 with gr.Accordion("Parameters", open=False) as parameter_row:
                     temperature = gr.Slider(minimum=0.0, maximum=1.0, value=0.2, step=0.1, interactive=True, label="Temperature",)
                     top_p = gr.Slider(minimum=0.0, maximum=1.0, value=0.7, step=0.1, interactive=True, label="Top P",)
+                    top_k = gr.Slider(minimum=1, maximum=100, value=20, step=1, interactive=True, label="Top K",)
                     max_output_tokens = gr.Slider(minimum=0, maximum=1024, value=512, step=64, interactive=True, label="Max output tokens",)
 
             with gr.Column(scale=8):
@@ -363,7 +365,7 @@ def build_demo(embed_mode, cur_dir=None, concurrency_count=10):
             [state, chatbot, textbox, imagebox] + btn_list
         ).then(
             http_bot,
-            [state, model_selector, temperature, top_p, max_output_tokens],
+            [state, model_selector, temperature, top_p, top_k, max_output_tokens],
             [state, chatbot] + btn_list,
             concurrency_limit=concurrency_count
         )
@@ -382,7 +384,7 @@ def build_demo(embed_mode, cur_dir=None, concurrency_count=10):
             queue=False
         ).then(
             http_bot,
-            [state, model_selector, temperature, top_p, max_output_tokens],
+            [state, model_selector, temperature, top_p, top_k, max_output_tokens],
             [state, chatbot] + btn_list,
             concurrency_limit=concurrency_count
         )
@@ -393,7 +395,7 @@ def build_demo(embed_mode, cur_dir=None, concurrency_count=10):
             [state, chatbot, textbox, imagebox] + btn_list
         ).then(
             http_bot,
-            [state, model_selector, temperature, top_p, max_output_tokens],
+            [state, model_selector, temperature, top_p, top_k, max_output_tokens],
             [state, chatbot] + btn_list,
             concurrency_limit=concurrency_count
         )

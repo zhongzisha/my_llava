@@ -4,6 +4,9 @@ module load cuDNN/8.9.2/CUDA-12
 module load gcc/11.3.0
 
 
+# cli
+python serve_cli.py --temperature 0.8 --top_p 0.8 --top_k 10 --debug --max-new-tokens 512
+
 
 python -m serve_controller --host 0.0.0.0 --port 10000
 python -m serve_gradio_web_server --controller http://localhost:10000 --model-list-mode reload
@@ -14,7 +17,7 @@ python -m serve_model_worker --host 0.0.0.0 --controller-address http://localhos
 # llava_qwen_2
 python -m serve_model_worker --host 0.0.0.0 --controller-address http://localhost:10000 \
     --port 40001 --worker http://localhost:40001 \
-    --model_path "/Users/zhongz2/down/finetune_qwen_2" \
+    --model_path "/Users/zhongz2/down/checkpoint-300" \
     --model_name "llava_qwen_2" \
     --conv_version "qwen_2" \
     --cache_dir "/Users/zhongz2/down/cache_dir" \
@@ -65,4 +68,13 @@ python serve_cli.py \
     --attn_implementation "eager" \
     --device "mps" \
     --temperature 0.1
+
+
+
+
+
+
+
+
+
 

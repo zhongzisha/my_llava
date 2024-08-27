@@ -19,9 +19,9 @@ VIDEO_FOLDER="${MYTMP_DIR}"
 PRETRAIN_DATA="${JSON_FOLDER}/llava_image_.json ${JSON_FOLDER}/llava_med_alignment_500k_cleaned.json"
 FINETUNE_DATA="${JSON_FOLDER}/llava_med_instruct_60k_cleaned.json ${JSON_FOLDER}/la_tune_256k.json ${JSON_FOLDER}/lrv_tune_331k.json ${JSON_FOLDER}/lvis_tune_220k_.json ${JSON_FOLDER}/svit_tune_157k.json ${JSON_FOLDER}/nlp_tune.json"
 FINETUNE_DATA="${JSON_FOLDER}/llava_med_instruct_60k_cleaned.json ${JSON_FOLDER}/llava_image_tune_cleaned.json"
-# PRETRAIN_DATA="${JSON_FOLDER}/llava_image_debug1.json"
-# FINETUNE_DATA="${JSON_FOLDER}/llava_image_tune_cleaned_debug1.json"
-save_steps=100
+PRETRAIN_DATA="${JSON_FOLDER}/llava_image_debug1.json"
+FINETUNE_DATA="${JSON_FOLDER}/llava_image_tune_cleaned_debug1.json"
+save_steps=5
 num_train_epochs=1
 
 
@@ -34,26 +34,28 @@ num_workers=4
 
 conv_version=plain
 
-conv_version=llama_3
-model_name_or_path="meta-llama/Meta-Llama-3-8B-Instruct"
-pretrain_ckpt_path=     # "--pretrain_ckpt_path /data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/mm_projector.bin"
-output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune2_test2
-MASTER_PORT=25299
-
-conv_version=gemma_2
-model_name_or_path="google/gemma-2-9b-it"
-output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_${conv_version}_fixed
+conv_version=llama_3_1
+vision_tower_name=conch
+model_name_or_path="meta-llama/Meta-Llama-3.1-8B-Instruct"
+pretrain_ckpt_path="--pretrain_ckpt_path /data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_plain/mm_projector.bin"
 pretrain_ckpt_path=
-MASTER_PORT=25200
+output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_${conv_version}_without_pretrain_conch
+MASTER_PORT=25199
+
+# conv_version=gemma_2
+# model_name_or_path="google/gemma-2-9b-it"
+# output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_${conv_version}_fixed
+# pretrain_ckpt_path=
+# MASTER_PORT=25200
 
 
-conv_version=qwen_2
-model_name_or_path="Qwen/Qwen2-7B-Instruct"
-model_name_or_path="Qwen/Qwen2-7B"
-output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_${conv_version}_without_pretrain_base
-pretrain_ckpt_path=
-MASTER_PORT=25201
-per_device_train_batch_size=2
+# conv_version=qwen_2
+# model_name_or_path="Qwen/Qwen2-7B-Instruct"
+# output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_${conv_version}
+# pretrain_ckpt_path=
+# MASTER_PORT=25201
+
+per_device_train_batch_size=1
 gradient_accumulation_steps=8
 
 
@@ -80,6 +82,7 @@ torchrun \
     main.py \
     --deepspeed ${deepspeed_config}.json \
     --model_name_or_path ${model_name_or_path} \
+    --vision_tower_name ${vision_tower_name} \
     --data_path $FINETUNE_DATA \
     --image_folder $IMAGE_FOLDER \
     ${data_type_str} \
@@ -144,7 +147,7 @@ rustup default 1.75*******
 
 vim /data/zhongz2/anaconda3/envs/th21_ds0144/lib/python3.11/site-packages/transformers/utils/import_utils.py
 
-
+find ./data -type f -name "*.zip" -exec mv {} . \;
 
 
 

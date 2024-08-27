@@ -37,6 +37,8 @@ from safetensors import safe_open
 from safetensors.torch import load_file as safe_load_file
 from safetensors.torch import save_file as safe_save_file
 from transformers.cache_utils import HybridCache
+from torchvision import transforms
+from timm.models.vision_transformer import VisionTransformer
 
 USE_TRANSFORMERS_TRAINER = True
 if USE_TRANSFORMERS_TRAINER:
@@ -256,7 +258,7 @@ class Conversation:
                 "messages": [[x, y[0] if type(y) is tuple else y] for x, y in self.messages],
                 "offset": self.offset,
                 "sep": self.sep,
-                "sep2": self.sep2,
+                "sep2": self.sep2
             }
         return {
             "system": self.system,
@@ -264,7 +266,7 @@ class Conversation:
             "messages": self.messages,
             "offset": self.offset,
             "sep": self.sep,
-            "sep2": self.sep2,
+            "sep2": self.sep2
         }
 
 conv_templates = {
@@ -325,7 +327,7 @@ conv_templates = {
         stop_str='<|im_end|>'
     )
 }
-default_converation = conv_templates['llama_3_1']
+default_conversation = conv_templates['llama_3_1']
 
 
 @dataclass
@@ -344,6 +346,7 @@ class ModelArguments:
     model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
     conv_version: Optional[str] = field(default="plain")
     pretrain_ckpt_path: Optional[str] = field(default=None)
+    vision_tower_name_or_path: Optional[str] = field(default="openai/clip-vit-large-patch14-336")
 
 
 @dataclass
@@ -401,7 +404,7 @@ def preprocess_plain(
         tokenized_len = len(tokenizer_image_token(source[0]['value'], tokenizer))
         target[:tokenized_len] = IGNORE_INDEX
 
-    if input_ids[0][0] != tokenizer.bos_token_id:
+    if tokenizer.bos_token_id is not None and input_ids[0][0] != tokenizer.bos_token_id:
         input_ids = [torch.cat([torch.LongTensor([tokenizer.bos_token_id]), i]) for i in input_ids]
         targets = [torch.cat([torch.LongTensor([IGNORE_INDEX]), i]) for i in targets]
     
@@ -433,7 +436,7 @@ def preprocess_llama_3(
             tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
-                add_generation_prompt=False
+                add_generation_prompt=True
             ))
     if has_image:
         input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
@@ -481,7 +484,7 @@ def preprocess_llama_3(
                     f" (ignored)"
                 )
                 
-    if input_ids[0][0] != tokenizer.bos_token_id:
+    if tokenizer.bos_token_id is not None and input_ids[0][0] != tokenizer.bos_token_id:
         input_ids = [torch.cat([torch.LongTensor([tokenizer.bos_token_id]), i]) for i in input_ids]
         targets = [torch.cat([torch.LongTensor([IGNORE_INDEX]), i]) for i in targets]
 
@@ -516,7 +519,7 @@ def preprocess_llama_3_1(
             tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
-                add_generation_prompt=False
+                add_generation_prompt=True
             ))
     if has_image:
         input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
@@ -565,7 +568,7 @@ def preprocess_llama_3_1(
                     f" (ignored)"
                 )
                 
-    if input_ids[0][0] != tokenizer.bos_token_id:
+    if tokenizer.bos_token_id is not None and input_ids[0][0] != tokenizer.bos_token_id:
         input_ids = [torch.cat([torch.LongTensor([tokenizer.bos_token_id]), i]) for i in input_ids]
         targets = [torch.cat([torch.LongTensor([IGNORE_INDEX]), i]) for i in targets]
 
@@ -603,7 +606,7 @@ def preprocess_gemma_2(
             tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
-                add_generation_prompt=False
+                add_generation_prompt=True
             ))
     if has_image:
         input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
@@ -651,7 +654,7 @@ def preprocess_gemma_2(
                     f" (ignored)"
                 )
                 
-    if input_ids[0][0] != tokenizer.bos_token_id:
+    if tokenizer.bos_token_id is not None and input_ids[0][0] != tokenizer.bos_token_id:
         input_ids = [torch.cat([torch.LongTensor([tokenizer.bos_token_id]), i]) for i in input_ids]
         targets = [torch.cat([torch.LongTensor([IGNORE_INDEX]), i]) for i in targets]
 
@@ -687,7 +690,7 @@ def preprocess_qwen_2(
             tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
-                add_generation_prompt=False
+                add_generation_prompt=True
             ))
     if has_image:
         input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
@@ -735,7 +738,7 @@ def preprocess_qwen_2(
                     f" (ignored)"
                 )
 
-    if input_ids[0][0] != tokenizer.bos_token_id:
+    if tokenizer.bos_token_id is not None and input_ids[0][0] != tokenizer.bos_token_id:
         input_ids = [torch.cat([torch.LongTensor([tokenizer.bos_token_id]), i]) for i in input_ids]
         targets = [torch.cat([torch.LongTensor([IGNORE_INDEX]), i]) for i in targets]
 
@@ -1760,6 +1763,127 @@ AutoModelForCausalLM.register(DebugLlavaConfig, DebugLlavaForCausalLM)
 
 
 
+@dataclass
+class CoCaVisionCfg:
+    layers: int = 12
+    width: int = 768
+    num_heads: int = 12
+    mlp_ratio: int = 4
+    patch_size: int = 16
+    image_size: Union[Tuple[int, int], int] = 448
+
+
+class CoCaVisionModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        config = CoCaVisionCfg()
+        self.config = config
+        self.trunk = VisionTransformer(embed_dim=config.width, 
+                                       depth=config.layers, 
+                                       num_heads=config.num_heads, 
+                                       mlp_ratio=config.mlp_ratio,
+                                       img_size=config.image_size, 
+                                       patch_size=config.patch_size,
+                                       num_classes=0,
+                                       dynamic_img_size=True)
+        self.config.hidden_size = self.trunk.num_features
+    
+    def load_pretrained(self, pretrained_ckpt_path="/data/zhongz2/temp29/debug/CONCH_weights_pytorch_model.bin"):
+        state_dict = torch.load(pretrained_ckpt_path, weights_only=True)
+        vision_params = {k.replace('visual.trunk.', ''): v for k, v in state_dict.items() if 'visual.trunk' in k}
+        self.trunk.load_state_dict(vision_params)
+        del state_dict
+        
+    def forward(self, x):
+        features = self.trunk.get_intermediate_layers(x)[0]  # 1x (num_patches * num_patches) x embed_dim
+        return features
+
+def _convert_to_rgb(image):
+    return image.convert('RGB')
+
+class CoCaImageProcessor:
+    def __init__(self):
+        config = CoCaVisionCfg()
+        self.config = config
+        self.crop_size = {"height": config.image_size, "width": config.image_size}
+        self.size = {"shortest_edge": config.image_size}
+        OPENAI_DATASET_MEAN = (0.48145466, 0.4578275, 0.40821073)
+        OPENAI_DATASET_STD = (0.26862954, 0.26130258, 0.27577711)
+        normalize = transforms.Normalize(mean=OPENAI_DATASET_MEAN, std=OPENAI_DATASET_STD)
+
+        transforms_op = [
+            transforms.Resize(config.image_size, interpolation=transforms.InterpolationMode.BICUBIC),
+            transforms.CenterCrop(config.image_size),
+        ]
+        transforms_op.extend([
+            _convert_to_rgb,
+            transforms.ToTensor(),
+            normalize,
+        ])
+        self.image_transform = transforms.Compose(transforms_op)
+
+    def preprocess(self, images, return_tensors="pt"): 
+        if not isinstance(images, list):
+            images = [images]
+        return {"pixel_values": torch.stack([self.image_transform(image) for image in images], dim=0)}
+    
+    def __call__(self, images, return_tensors="pt"):
+        return self.preprocess(images, return_tensors)
+
+
+
+class DebugLlavaConchConfig(LlamaConfig):
+    model_type = "debug_llava_conch"
+    temperature: float = 0.0  # reset to 0.0, previously 0.9 for Vicuna
+    max_new_tokens: int = 1024
+    do_sample: bool = False
+    top_p: Optional[float] = None
+    rope_scaling: Optional[dict] = {}
+
+class DebugLlavaConchForCausalLM(DebugLlavaForCausalLM):
+    config_class = DebugLlavaConchConfig
+
+    def initialize_vision_modules(self, device="auto", dtype=torch.bfloat16, mm_projector_type="mlp2x_gelu", pretrain_ckpt_path=None):
+        # vision_tower_name_or_ckpt = 'openai/clip-vit-large-patch14-336'
+        # self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
+        # self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_ckpt).to(device=device, dtype=dtype)
+        self.image_processor = CoCaImageProcessor()
+        self.vision_tower = CoCaVisionModel()
+        self.vision_tower.load_pretrained()
+
+        if mm_projector_type == 'linear':
+            self.mm_projector = nn.Linear(self.vision_tower.config.hidden_size, self.config.hidden_size, device=device, dtype=dtype)
+        elif mm_projector_type == 'mlp2x_gelu':
+            mlp_gelu_match = re.match(r"^mlp(\d+)x_gelu$", mm_projector_type)
+            mlp_depth = int(mlp_gelu_match.group(1))
+            modules = [nn.Linear(self.vision_tower.config.hidden_size, self.config.hidden_size)]
+            for _ in range(1, mlp_depth):
+                modules.append(nn.GELU())
+                modules.append(nn.Linear(self.config.hidden_size, self.config.hidden_size))
+            self.mm_projector = nn.Sequential(*modules)
+
+        if pretrain_ckpt_path is not None:
+            print('loading pretrain ckpt path for mm_projector')
+            self.mm_projector.load_state_dict(torch.load(pretrain_ckpt_path), strict=False)
+        self.mm_projector.to(device=device, dtype=dtype)
+
+        self.num_patches_per_side = self.vision_tower.config.image_size // self.vision_tower.config.patch_size
+
+        embed_std = 1 / torch.sqrt(torch.tensor(self.config.hidden_size, dtype=dtype))
+        self.image_newline = nn.Parameter(torch.randn(self.config.hidden_size, dtype=dtype, device=device) * embed_std)
+
+    def encode_images(self, images):
+        # vision_tower_outputs = self.vision_tower(images, output_hidden_states=True) 
+        # image_features = vision_tower_outputs.hidden_states[-2][:, 1:]
+        # image_features = self.mm_projector(image_features)
+        vision_tower_outputs = self.vision_tower(images) 
+        image_features = self.mm_projector(vision_tower_outputs)
+        return image_features
+
+AutoConfig.register("debug_llava_conch", DebugLlavaConchConfig)
+AutoModelForCausalLM.register(DebugLlavaConchConfig, DebugLlavaConchForCausalLM)
+
 
 class DebugLlavaGemma2Config(Gemma2Config):
     model_type = "debug_llava_gemma2"
@@ -2057,11 +2181,11 @@ AutoModelForCausalLM.register(DebugLlavaGemma2Config, DebugLlavaGemma2ForCausalL
 
 class DebugLlavaQwen2Config(Qwen2Config):
     model_type = "debug_llava_qwen2"
-    temperature: float = 0.0  # reset to 0.0, previously 0.9 for Vicuna
-    max_new_tokens: int = 1024
-    do_sample: bool = False
-    top_p: Optional[float] = None
-    rope_scaling: Optional[dict] = {}
+    # temperature: float = 0.0  # reset to 0.0, previously 0.9 for Vicuna
+    # max_new_tokens: int = 1024
+    # do_sample: bool = False
+    # top_p: Optional[float] = None
+    # rope_scaling: Optional[dict] = {}
 
 
 class DebugLlavaQwen2ForCausalLM(Qwen2ForCausalLM):
@@ -3139,24 +3263,38 @@ def test_deepseek():
     messages = [
         {"role": "user", "content": "Write a piece of quicksort code in C++"}
     ]
-    input_tensor = tokenizer.apply_chat_template(messages, add_generation_prompt=False, return_tensors="pt")
+    input_tensor = tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
     outputs = model.generate(input_tensor.to(model.device), max_new_tokens=100)
 
     result = tokenizer.decode(outputs[0][input_tensor.shape[1]:], skip_special_tokens=True)
     print(result)
 
 
-def test_qwen2():
+def test_llama_3_1():
     from transformers import AutoModelForCausalLM, AutoTokenizer
     device = "cuda" # the device to load the model onto
     cache_dir = '/data/zhongz2/data/cache_dir'
     model = AutoModelForCausalLM.from_pretrained(
-        "Qwen/Qwen2-7B-Instruct",
+        'meta-llama/Meta-Llama-3.1-8B-Instruct',
         torch_dtype="auto",
         device_map="auto",
         cache_dir=cache_dir
     )
-    tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-7B-Instruct", cache_dir=cache_dir)
+    tokenizer = AutoTokenizer.from_pretrained('meta-llama/Meta-Llama-3.1-8B-Instruct', cache_dir=cache_dir)
+
+def test_qwen2():
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    device = "cuda" # the device to load the model onto
+    cache_dir = '/data/zhongz2/data/cache_dir'
+    mode_name_or_path = "Qwen/Qwen2-7B"
+    mode_name_or_path = "Qwen/Qwen2-7B-Instruct"
+    model = AutoModelForCausalLM.from_pretrained(
+        mode_name_or_path,
+        torch_dtype="auto",
+        device_map="auto",
+        cache_dir=cache_dir
+    )
+    tokenizer = AutoTokenizer.from_pretrained(mode_name_or_path, cache_dir=cache_dir)
 
     prompt = "Give me a short introduction to large language model."
     messages = [
@@ -3166,7 +3304,7 @@ def test_qwen2():
     text = tokenizer.apply_chat_template(
         messages,
         tokenize=False,
-        add_generation_prompt=False
+        add_generation_prompt=True
     )
     model_inputs = tokenizer([text], return_tensors="pt").to(device)
 
@@ -3292,7 +3430,7 @@ def eval():
                 prompt = self.tokenizer.apply_chat_template(
                     messages,
                     tokenize=False,
-                    add_generation_prompt=False
+                    add_generation_prompt=True
                 )
                 if index == 0:
                     print(prompt)
@@ -3427,10 +3565,11 @@ def train_with_hf_trainer():
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
             model_max_length=training_args.model_max_length,
+            use_fast=False
         )
-        tokenizer.bos_token = '<|im_start|>'
-        if tokenizer.unk_token is None:
-            tokenizer.unk_token = tokenizer.eos_token
+        # tokenizer.bos_token = '<|im_start|>'
+        # if tokenizer.unk_token is None:
+        #     tokenizer.unk_token = tokenizer.eos_token
     else:
         raise ValueError("error model_name_or_path")
 
@@ -3445,7 +3584,10 @@ def train_with_hf_trainer():
             "attn_implementation": "flash_attention_2",
             "torch_dtype": torch.bfloat16
         }
-        model = DebugLlavaForCausalLM.from_pretrained(model_args.model_name_or_path, **kwargs)
+        if 'conch' in model_args.vision_tower_name_or_path.lower():
+            model = DebugLlavaConchForCausalLM.from_pretrained(model_args.model_name_or_path, **kwargs)
+        else:
+            model = DebugLlavaForCausalLM.from_pretrained(model_args.model_name_or_path, **kwargs)
     elif 'gemma' in model_args.model_name_or_path.lower():
         kwargs = {
             "cache_dir": training_args.cache_dir,
@@ -3473,7 +3615,8 @@ def train_with_hf_trainer():
         for p in model.mm_projector.parameters():
             p.requires_grad = True
     else:
-        # model.vision_tower.requires_grad_(False)
+        # if 'conch' in model_args.vision_tower_name_or_path.lower():
+        #     model.vision_tower.requires_grad_(False)
         lr_of_vit = training_args.mm_vision_tower_lr if training_args.mm_vision_tower_lr is not None else training_args.learning_rate
         lr_of_mlp = training_args.mm_projector_lr if training_args.mm_projector_lr is not None else training_args.learning_rate
         training_args.mm_projector_lr = lr_of_mlp
@@ -3518,6 +3661,7 @@ def train_with_hf_trainer():
     trainer = LLaVATrainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
 
     model.config.pretrain_ckpt_path = model_args.pretrain_ckpt_path
+    model.config.vision_tower_name_or_path = model_args.vision_tower_name_or_path
     # print(f'loading from pretrained checkpoint {model_args.pretrain_ckpt_path}')
     # if model_args.pretrain_ckpt_path is not None:
     #     unwrapped_model = trainer.accelerator.unwrap_model(model)
@@ -3563,7 +3707,10 @@ def load_pretrained_model(model_path, cache_dir, conv_version, load_8bit, load_4
 
     cfg_pretrained = AutoConfig.from_pretrained(model_path)
     if conv_version in ['llama_3', 'llama_3_1']:
-        model = DebugLlavaForCausalLM.from_pretrained(model_path, config=cfg_pretrained, **kwargs)
+        if 'conch' in cfg_pretrained.vision_tower_name_or_path.lower():
+            model = DebugLlavaConchForCausalLM.from_pretrained(model_path, config=cfg_pretrained, **kwargs)
+        else:
+            model = DebugLlavaForCausalLM.from_pretrained(model_path, config=cfg_pretrained, **kwargs)
     elif conv_version == 'gemma_2':
         model = DebugLlavaGemma2ForCausalLM.from_pretrained(model_path, config=cfg_pretrained, **kwargs)
     elif conv_version == 'qwen_2':
@@ -3572,6 +3719,7 @@ def load_pretrained_model(model_path, cache_dir, conv_version, load_8bit, load_4
     model.to(device)
     model.eval()
     load_sharded_checkpoint(model, model_path)
+    model.to(torch.float16)
     return tokenizer, model, model.image_processor 
 
 

@@ -139,9 +139,9 @@ class ModelWorker:
                     raise ValueError("Number of images does not match number of <image> tokens in prompt")
 
                 images = [load_image_from_base64(image) for image in images]
-                image_sizes = [image.size for image in images]
                 # images = process_images(images, image_processor, model.config)
                 images_new = []
+                image_sizes = []
                 for image in images:
                     image_size = image.size
                     max_size = max(image_size)
@@ -149,9 +149,10 @@ class ModelWorker:
                         scale = 1024. / max_size
                         image_size = (int(scale*image_size[0]), int(scale*image_size[1]))
                         image = image.resize(image_size)
-                    
                     image = process_anyres_image(image, image_processor, model.config.image_grid_pinpoints)
                     images_new.append(image)
+                    image_sizes.append(image_size)
+
                 images = images_new
 
                 if type(images) is list:
@@ -173,15 +174,16 @@ class ModelWorker:
 
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
+        top_k = int(params.get("top_k", 20))
         max_context_length = getattr(model.config, 'max_position_embeddings', 2048)
         max_new_tokens = min(int(params.get("max_new_tokens", 256)), 1024)
         stop_str = params.get("stop", None)
         do_sample = True if temperature > 0.001 else False
 
         input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).to(self.device)
-        keywords = [stop_str]
+        # keywords = [stop_str, '...']
         # stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
-        streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True, timeout=1000)
+        streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=False, timeout=10000)
 
         max_new_tokens = min(max_new_tokens, max_context_length - input_ids.shape[-1] - num_image_tokens)
 
@@ -194,6 +196,7 @@ class ModelWorker:
             do_sample=do_sample,
             temperature=temperature,
             top_p=top_p,
+            top_k=top_k,
             max_new_tokens=max_new_tokens,
             streamer=streamer,
             use_cache=True,
@@ -276,7 +279,7 @@ if __name__ == "__main__":
     parser.add_argument("--cache_dir", type=str, default="/Users/zhongz2/down/cache_dir")
     parser.add_argument("--conv_version", type=str, default="llama_3_1", choices=['llama_3_1', 'gemma_2', 'qwen_2'])
     parser.add_argument("--device", type=str, default="mps", choices=["cuda", "mps", "cpu"])
-    parser.add_argument("--attn_implementation", type=str, default="eager", choices=["eager", 'flash_attention_2'])
+    parser.add_argument("--attn_implementation", type=str, default="eager", choices=["eager", 'flash_attention_2', 'sdpa'])
     parser.add_argument("--multi-modal", action="store_true", help="Multimodal mode is automatically detected with model name, please make sure `llava` is included in the model path.")
     parser.add_argument("--limit-model-concurrency", type=int, default=5)
     parser.add_argument("--stream-interval", type=int, default=1)

@@ -555,6 +555,10 @@ if True:
     image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
     vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_ckpt)
 
+    vision_tower_name_or_ckpt = '/data/zhongz2/temp29/debug/vinid_plip/'
+    image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
+    vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_ckpt)
+
     images = [Image.fromarray(np.random.randint(0, 255, size=(256, 256, 3), dtype=np.uint8))]
     inputs = image_processor(images, return_tensors="pt")['pixel_values']
     vision_tower_outputs = vision_tower(inputs, output_hidden_states=True) 
@@ -580,3 +584,31 @@ if True:
 
     processor = CoCaImageProcessor()
     inputs = processor(images, return_tensors="pt")['pixel_values']
+
+
+    from PIL import Image
+    import requests
+    from transformers import AutoProcessor, AutoModel
+    import torch
+
+    cache_dir = '/data/zhongz2/data/cache_dir'
+    model = AutoModel.from_pretrained("google/siglip-so400m-patch14-384", cache_dir=cache_dir)
+    processor = AutoProcessor.from_pretrained("google/siglip-so400m-patch14-384", cache_dir=cache_dir)
+    
+    url = "http://images.cocodataset.org/val2017/000000039769.jpg"
+    image = Image.open(requests.get(url, stream=True).raw)
+
+    texts = ["a photo of 2 cats", "a photo of 2 dogs"]
+    inputs = processor(text=texts, images=image, padding="max_length", return_tensors="pt")
+
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    logits_per_image = outputs.logits_per_image
+    probs = torch.sigmoid(logits_per_image) # these are the probabilities
+    print(f"{probs[0][0]:.1%} that image 0 is '{texts[0]}'")
+
+
+
+
+

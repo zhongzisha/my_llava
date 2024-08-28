@@ -1,11 +1,26 @@
-source /data/zhongz2/anaconda3/bin/activate th23
+source /data/zhongz2/anaconda3/bin/activate th24
 module load CUDA/12.1
 module load cuDNN/8.9.2/CUDA-12
 module load gcc/11.3.0
 
 
 # cli
-python serve_cli.py --temperature 0.8 --top_p 0.8 --top_k 10 --debug --max-new-tokens 512
+MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/meta-llama/Meta-Llama-3.1-8B-Instruct/google/siglip-so400m-patch14-384/llama_3_1/finetune/checkpoint-500/
+# MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_llama_3_1_without_pretrain_conch/checkpoint-1800
+MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/meta-llama/Meta-Llama-3.1-8B-Instruct/openai/clip-vit-large-patch14-336/llama_3_1/finetune
+MODEL_NAME=llava_llama_3_1
+CONV_VERSION=llama_3_1
+# MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/Qwen/Qwen2-7B/openai/clip-vit-large-patch14-336/qwen_2/finetune/checkpoint-300/
+# MODEL_NAME=llava_qwen_2
+# CONV_VERSION=qwen_2
+python serve_cli.py \
+--model_path ${MODEL_PATH} \
+--model_name ${MODEL_NAME} \
+--conv_version ${CONV_VERSION} \
+--device "cuda" \
+--attn_implementation "flash_attention_2" \
+--temperature 0.2 --top_p 0.8 --top_k 30 --debug --max-new-tokens 512 \
+--image-file ./examples/figure-002-a71770_large.jpg
 
 
 python -m serve_controller --host 0.0.0.0 --port 10000

@@ -25,12 +25,13 @@ import torch.nn as nn
 from torch.utils.data import Dataset, Sampler
 
 import transformers
-from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoConfig, AutoTokenizer, AutoModel, AutoProcessor, AutoModelForCausalLM, BitsAndBytesConfig
 from transformers import LlamaConfig, LlamaForCausalLM
 from transformers import Gemma2Config, Gemma2ForCausalLM
 from transformers import Qwen2Config, Qwen2ForCausalLM
 
 from transformers import CLIPVisionModel, CLIPImageProcessor, CLIPVisionConfig
+from transformers import SiglipVisionModel, SiglipImageProcessor, SiglipVisionConfig
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.generation.utils import GenerateOutput
 from safetensors import safe_open
@@ -957,9 +958,10 @@ def process_anyres_image(image, processor, grid_pinpoints):
     best_resolution = select_best_resolution(image.size, possible_resolutions)
     image_padded = resize_and_pad_image(image, best_resolution)
 
-    patches = divide_to_patches(image_padded, processor.crop_size['height'])
+    patches = divide_to_patches(image_padded, processor.crop_size['height'] if "crop_size" in processor.__dict__ else processor.size["height"])
 
-    image_original_resize = image.resize((processor.size['shortest_edge'], processor.size['shortest_edge']))
+    shortest_edge = processor.size['shortest_edge'] if "shortest_edge" in processor.size else processor.size["height"]
+    image_original_resize = image.resize((shortest_edge, shortest_edge))
 
     image_patches = [image_original_resize] + patches
     image_patches = [processor.preprocess(image_patch, return_tensors='pt')['pixel_values'][0]
@@ -987,6 +989,7 @@ class LazySupervisedDataset(Dataset):
         self.conversation = conversation
         self.list_data_dict = list_data_dict
         self.data_args = data_args
+        self.crop_size = self.data_args.image_processor.crop_size if "crop_size" in self.data_args.image_processor.__dict__ else self.data_args.image_processor.size
 
     def __len__(self):
         return len(self.list_data_dict)
@@ -1045,9 +1048,9 @@ class LazySupervisedDataset(Dataset):
 
         elif self.data_args.is_multimodal:
             # image does not exist in the data, but the model is multimodal
-            crop_size = self.data_args.image_processor.crop_size
-            data_dict['image'] = torch.zeros(3, crop_size['height'], crop_size['width'])
-            data_dict['image_size'] = (crop_size['width'], crop_size['height']) 
+            
+            data_dict['image'] = torch.zeros(3, self.crop_size['height'], self.crop_size['width'])
+            data_dict['image_size'] = (self.crop_size['width'], self.crop_size['height']) 
 
         return data_dict
 
@@ -1883,6 +1886,95 @@ class DebugLlavaConchForCausalLM(DebugLlavaForCausalLM):
 
 AutoConfig.register("debug_llava_conch", DebugLlavaConchConfig)
 AutoModelForCausalLM.register(DebugLlavaConchConfig, DebugLlavaConchForCausalLM)
+
+
+
+class DebugLlavaSiglipConfig(LlamaConfig):
+    model_type = "debug_llava_siglip"
+
+class DebugLlavaSiglipForCausalLM(DebugLlavaForCausalLM):
+    config_class = DebugLlavaSiglipConfig
+
+    def initialize_vision_modules(self, device="auto", dtype=torch.bfloat16, mm_projector_type="mlp2x_gelu", pretrain_ckpt_path=None):
+        vision_tower_name_or_ckpt = 'google/siglip-so400m-patch14-384'
+        self.image_processor = SiglipImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
+        self.vision_tower = SiglipVisionModel.from_pretrained(vision_tower_name_or_ckpt).to(device=device, dtype=dtype)
+
+        if mm_projector_type == 'linear':
+            self.mm_projector = nn.Linear(self.vision_tower.config.hidden_size, self.config.hidden_size, device=device, dtype=dtype)
+        elif mm_projector_type == 'mlp2x_gelu':
+            mlp_gelu_match = re.match(r"^mlp(\d+)x_gelu$", mm_projector_type)
+            mlp_depth = int(mlp_gelu_match.group(1))
+            modules = [nn.Linear(self.vision_tower.config.hidden_size, self.config.hidden_size)]
+            for _ in range(1, mlp_depth):
+                modules.append(nn.GELU())
+                modules.append(nn.Linear(self.config.hidden_size, self.config.hidden_size))
+            self.mm_projector = nn.Sequential(*modules)
+
+        if pretrain_ckpt_path is not None:
+            print('loading pretrain ckpt path for mm_projector')
+            self.mm_projector.load_state_dict(torch.load(pretrain_ckpt_path), strict=False)
+        self.mm_projector.to(device=device, dtype=dtype)
+
+        self.num_patches_per_side = self.vision_tower.config.image_size // self.vision_tower.config.patch_size
+
+        embed_std = 1 / torch.sqrt(torch.tensor(self.config.hidden_size, dtype=dtype))
+        self.image_newline = nn.Parameter(torch.randn(self.config.hidden_size, dtype=dtype, device=device) * embed_std)
+
+    def encode_images(self, images):
+        vision_tower_outputs = self.vision_tower(images, output_hidden_states=True) 
+        image_features = vision_tower_outputs.hidden_states[-2] # [:, 1:]
+        image_features = self.mm_projector(image_features)
+        return image_features
+
+AutoConfig.register("debug_llava_siglip", DebugLlavaSiglipConfig)
+AutoModelForCausalLM.register(DebugLlavaSiglipConfig, DebugLlavaSiglipForCausalLM)
+
+
+
+class DebugLlavaPlipConfig(LlamaConfig):
+    model_type = "debug_llava_plip"
+
+class DebugLlavaPlipForCausalLM(DebugLlavaForCausalLM):
+    config_class = DebugLlavaPlipConfig
+
+    def initialize_vision_modules(self, device="auto", dtype=torch.bfloat16, mm_projector_type="mlp2x_gelu", pretrain_ckpt_path=None):
+        vision_tower_name_or_ckpt = '/data/zhongz2/temp29/debug/vinid_plip/'
+        self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
+        self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_ckpt).to(device=device, dtype=dtype)
+
+        if mm_projector_type == 'linear':
+            self.mm_projector = nn.Linear(self.vision_tower.config.hidden_size, self.config.hidden_size, device=device, dtype=dtype)
+        elif mm_projector_type == 'mlp2x_gelu':
+            mlp_gelu_match = re.match(r"^mlp(\d+)x_gelu$", mm_projector_type)
+            mlp_depth = int(mlp_gelu_match.group(1))
+            modules = [nn.Linear(self.vision_tower.config.hidden_size, self.config.hidden_size)]
+            for _ in range(1, mlp_depth):
+                modules.append(nn.GELU())
+                modules.append(nn.Linear(self.config.hidden_size, self.config.hidden_size))
+            self.mm_projector = nn.Sequential(*modules)
+
+        if pretrain_ckpt_path is not None:
+            print('loading pretrain ckpt path for mm_projector')
+            self.mm_projector.load_state_dict(torch.load(pretrain_ckpt_path), strict=False)
+        self.mm_projector.to(device=device, dtype=dtype)
+
+        self.num_patches_per_side = self.vision_tower.config.image_size // self.vision_tower.config.patch_size
+
+        embed_std = 1 / torch.sqrt(torch.tensor(self.config.hidden_size, dtype=dtype))
+        self.image_newline = nn.Parameter(torch.randn(self.config.hidden_size, dtype=dtype, device=device) * embed_std)
+
+    def encode_images(self, images):
+        vision_tower_outputs = self.vision_tower(images, output_hidden_states=True) 
+        image_features = vision_tower_outputs.hidden_states[-1] # [:, 1:]
+        image_features = self.mm_projector(image_features)
+        return image_features
+
+AutoConfig.register("debug_llava_plip", DebugLlavaPlipConfig)
+AutoModelForCausalLM.register(DebugLlavaPlipConfig, DebugLlavaPlipForCausalLM)
+
+
+
 
 
 class DebugLlavaGemma2Config(Gemma2Config):
@@ -3586,6 +3678,8 @@ def train_with_hf_trainer():
         }
         if 'conch' in model_args.vision_tower_name_or_path.lower():
             model = DebugLlavaConchForCausalLM.from_pretrained(model_args.model_name_or_path, **kwargs)
+        elif 'siglip' in model_args.vision_tower_name_or_path.lower():
+            model = DebugLlavaSiglipForCausalLM.from_pretrained(model_args.model_name_or_path, **kwargs)
         else:
             model = DebugLlavaForCausalLM.from_pretrained(model_args.model_name_or_path, **kwargs)
     elif 'gemma' in model_args.model_name_or_path.lower():
@@ -3709,6 +3803,8 @@ def load_pretrained_model(model_path, cache_dir, conv_version, load_8bit, load_4
     if conv_version in ['llama_3', 'llama_3_1']:
         if 'conch' in cfg_pretrained.vision_tower_name_or_path.lower():
             model = DebugLlavaConchForCausalLM.from_pretrained(model_path, config=cfg_pretrained, **kwargs)
+        elif 'siglip' in cfg_pretrained.vision_tower_name_or_path.lower():
+            model = DebugLlavaSiglipForCausalLM.from_pretrained(model_path, config=cfg_pretrained, **kwargs)
         else:
             model = DebugLlavaForCausalLM.from_pretrained(model_path, config=cfg_pretrained, **kwargs)
     elif conv_version == 'gemma_2':

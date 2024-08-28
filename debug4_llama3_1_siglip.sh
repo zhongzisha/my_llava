@@ -35,11 +35,10 @@ num_workers=4
 conv_version=plain
 
 conv_version=llama_3_1
-vision_tower_name=conch
+vision_tower_name=google/siglip-so400m-patch14-384
 model_name_or_path="meta-llama/Meta-Llama-3.1-8B-Instruct"
-pretrain_ckpt_path="--pretrain_ckpt_path /data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_plain/mm_projector.bin"
 pretrain_ckpt_path=
-output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_${conv_version}_without_pretrain_conch
+output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/${model_name_or_path}/${vision_tower_name}/${conv_version}/finetune
 MASTER_PORT=25399
 
 # conv_version=gemma_2
@@ -55,8 +54,8 @@ MASTER_PORT=25399
 # pretrain_ckpt_path=
 # MASTER_PORT=25201
 
-per_device_train_batch_size=1
-gradient_accumulation_steps=16
+per_device_train_batch_size=2
+gradient_accumulation_steps=8
 
 
 if [ ! -d ${output_dir} ]; then mkdir -p ${output_dir}; fi

@@ -200,6 +200,9 @@ class ModelWorker:
             max_new_tokens=max_new_tokens,
             streamer=streamer,
             use_cache=True,
+            repetition_penalty=1.2,
+            no_repeat_ngram_size=10,
+            early_stopping=True,
             **image_args
         ))
         thread.start()

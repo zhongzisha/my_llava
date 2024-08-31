@@ -5,7 +5,7 @@ if [ "$CLUSTER_NAME" == "FRCE" ]; then
     module load cudnn/8.8.3-cuda11
     MYTMP_DIR=/tmp/zhongz2
 else
-    source /data/zhongz2/anaconda3/bin/activate th23
+    source /data/zhongz2/anaconda3/bin/activate th24
     module load CUDA/12.1
     module load cuDNN/8.9.2/CUDA-12
     module load gcc/11.3.0

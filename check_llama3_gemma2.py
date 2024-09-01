@@ -574,12 +574,47 @@ if True:
                     add_generation_prompt=True
                 )
 
+
+
+    def tokenizer_image_token(prompt, tokenizer, image_token_index="<image>", return_tensors=None):
+        prompt_chunks = [tokenizer(chunk).input_ids for chunk in prompt.split("<image>")]
+
+        def insert_separator(X, sep):
+            return [ele for sublist in zip(X, [sep] * len(X)) for ele in sublist][:-1]
+
+        input_ids = []
+        offset = 0
+        if len(prompt_chunks) > 0 and len(prompt_chunks[0]) > 0 and prompt_chunks[0][0] == tokenizer.bos_token_id:
+            offset = 1
+            input_ids.append(prompt_chunks[0][0])
+
+        for x in insert_separator(prompt_chunks, [image_token_index] * (offset + 1)):
+            input_ids.extend(x[offset:])
+
+        if return_tensors is not None:
+            if return_tensors == "pt":
+                return torch.tensor(input_ids, dtype=torch.long)
+            raise ValueError(f"Unsupported tensor type: {return_tensors}")
+        return input_ids
+
+    messages = [
+        {'role': 'user', 'content': '<images>\n' + prompt}
+    ]
     inputs = tokenizer.apply_chat_template(
-                    [{'role': 'system', 'content': conv_glm_4.system},
-                    {'role': 'user', 'content': prompt}],
-                                        add_generation_prompt=True,
-                                        tokenize=False
-                                        )
+            messages,
+            add_generation_prompt=True,
+            tokenize=False,
+            # return_tensors="pt",
+            # return_dict=True
+        )
+    
+    inputs = tokenizer.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            tokenize=True,
+            return_tensors="pt",
+            return_dict=True
+        )
 
     device = "cuda"
     query = "你好"
@@ -591,7 +626,13 @@ if True:
                                         return_tensors="pt",
                                         return_dict=True
                                         )
-
+    inputs = tokenizer.apply_chat_template([
+        {"role": "user", "content": prompt}],
+                                        add_generation_prompt=True,
+                                        tokenize=True,
+                                        return_tensors="pt",
+                                        return_dict=True
+                                        )
     inputs = inputs.to(device)
     model = AutoModelForCausalLM.from_pretrained(
         "THUDM/glm-4-9b-chat",

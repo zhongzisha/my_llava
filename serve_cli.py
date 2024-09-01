@@ -54,11 +54,14 @@ def main(args):
     # tokenizer.eos_token = "<|im_end|>"
     # tokenizer.unk_token = "<|endoftext|>"
 
-    terminators = [
-        tokenizer.eos_token_id,
-        tokenizer.convert_tokens_to_ids("<|im_end|>"),
-        tokenizer.convert_tokens_to_ids("<|endoftext|>"),
-    ]
+    if tokenizer.eos_token_id is not None and isinstance(tokenizer.eos_token_id, list):
+        terminators = tokenizer.eos_token_id
+    else:
+        terminators = [
+            tokenizer.eos_token_id,
+            # tokenizer.convert_tokens_to_ids("<|im_end|>"),
+            # tokenizer.convert_tokens_to_ids("<|endoftext|>"),
+        ]
 
     roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
     messages = [{'role': 'system', 'content': conv.system}]
@@ -120,6 +123,8 @@ def main(args):
                 # pad_token_id=tokenizer.pad_token_id,
                 eos_token_id=terminators,
                 # no_repeat_ngram_size=2,
+                repetition_penalty=1.5,
+                num_beams=1,
                 streamer=streamer,
                 use_cache=True
             ) 
@@ -143,7 +148,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", type=str, default="/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_llama_3_1_without_pretrain_conch/checkpoint-700")
     parser.add_argument("--model_name", type=str, default="llava_llama_3_1")
     parser.add_argument("--cache_dir", type=str, default="/data/zhongz2/data/cache_dir/")
-    parser.add_argument("--conv_version", type=str, default="llama_3_1", choices=['llama_3_1', 'gemma_2', 'qwen_2'])
+    parser.add_argument("--conv_version", type=str, default="llama_3_1", choices=['llama_3_1', 'gemma_2', 'qwen_2', 'chatglm_4'])
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "mps", "cpu"])
     parser.add_argument("--attn_implementation", type=str, default="flash_attention_2", choices=["eager", "flash_attention_2", "sdpa"])
     parser.add_argument("--load_8bit", action="store_true")

@@ -14,14 +14,17 @@ CONV_VERSION=llama_3_1
 MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/Qwen/Qwen2-7B/openai/clip-vit-large-patch14-336/qwen_2/finetune
 MODEL_NAME=llava_qwen_2
 CONV_VERSION=qwen_2
+MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/THUDM/glm-4-9b-chat/openai/clip-vit-large-patch14-336/chatglm_4/finetune/checkpoint-1400
+MODEL_NAME=llava_chatglm_4
+CONV_VERSION=chatglm_4
 CUDA_VISIBLE_DEVICES=1 python serve_cli.py \
 --model_path ${MODEL_PATH} \
 --model_name ${MODEL_NAME} \
 --conv_version ${CONV_VERSION} \
 --device "cuda" \
---attn_implementation "flash_attention_2" \
---temperature 0.2 --top_p 0.8 --top_k 30 --debug --max-new-tokens 512 \
---image-file ./examples/figure-002-a71770_large.jpg
+--attn_implementation "sdpa" \
+--temperature 0.8 --top_p 0.8 --top_k 1 --debug --max-new-tokens 128 \
+--image-file ./examples/extreme_ironing.jpg
 
 
 python -m serve_controller --host 0.0.0.0 --port 10000
@@ -30,7 +33,7 @@ python -m serve_gradio_web_server --controller http://localhost:10000 --model-li
 python -m serve_model_worker --host 0.0.0.0 --controller-address http://localhost:10000 \
     --port 40000 --worker http://localhost:40000 \
     --model_path "/Users/zhongz2/down/llama_3_1_clip" \
-    --model_name "llava_llama_3_1" \
+    --model_name "llava_llama_3_1_clip" \
     --conv_version "llama_3_1" \
     --cache_dir "/Users/zhongz2/down/cache_dir" \
     --attn_implementation "sdpa" \
@@ -46,8 +49,8 @@ python -m serve_model_worker --host 0.0.0.0 --controller-address http://localhos
 # llava_qwen_2
 python -m serve_model_worker --host 0.0.0.0 --controller-address http://localhost:10000 \
     --port 40001 --worker http://localhost:40001 \
-    --model_path "/Users/zhongz2/down/checkpoint-300" \
-    --model_name "llava_qwen_2" \
+    --model_path "/Users/zhongz2/down/qwen_2_clip" \
+    --model_name "llava_qwen_2_clip" \
     --conv_version "qwen_2" \
     --cache_dir "/Users/zhongz2/down/cache_dir" \
     --attn_implementation "sdpa" \

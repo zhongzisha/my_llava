@@ -872,21 +872,35 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        batch_size, seq_length = attention_mask.shape
+        batch_size, seq_length = position_ids.shape
+        # print('ChatGLMModel forward self.seq_length', self.seq_length)
+        # print('ChatGLMModel forward input_ids', input_ids.shape if input_ids is not None else 'None')
+        # print('ChatGLMModel forward inputs_embeds', inputs_embeds.shape if inputs_embeds is not None else 'None')
+        # print('ChatGLMModel forward position_ids', position_ids.shape if position_ids is not None else 'None')
+        # print('ChatGLMModel forward attention_mask', attention_mask.shape if attention_mask is not None else 'None')
+        # print('ChatGLMModel forward full_attention_mask', full_attention_mask.shape if full_attention_mask is not None else 'None')
+        # print('ChatGLMModel forward past_key_values', len(past_key_values) if past_key_values is not None else 'None')
 
-        if inputs_embeds is None:
+        # if inputs_embeds is None:
+        #     inputs_embeds = self.embedding(input_ids)
+        if input_ids is not None and input_ids.shape[1] > 0:
             inputs_embeds = self.embedding(input_ids)
+        # print('ChatGLMModel forward inputs_embeds', inputs_embeds.shape if inputs_embeds is not None else 'None')
 
         if full_attention_mask is None:
             if (attention_mask is not None and not attention_mask.all()) or (past_key_values and seq_length != 1):
-                full_attention_mask = self.get_masks(attention_mask, past_key_values, padding_mask=attention_mask)
+                full_attention_mask = self.get_masks(position_ids, past_key_values, padding_mask=attention_mask)
+        # print('ChatGLMModel forward full_attention_mask', full_attention_mask.shape if full_attention_mask is not None else 'None')
 
         # Rotary positional embeddings
         rotary_pos_emb = self.rotary_pos_emb(self.seq_length)
+        # print('ChatGLMModel forward rotary_pos_emb', rotary_pos_emb.shape if rotary_pos_emb is not None else 'None')
         if position_ids is not None:
             rotary_pos_emb = rotary_pos_emb[position_ids]
         else:
             rotary_pos_emb = rotary_pos_emb[None, :seq_length]
+        # print('ChatGLMModel forward rotary_pos_emb', rotary_pos_emb.shape if rotary_pos_emb is not None else 'None')
+        
 
         # Run encoder.
         hidden_states, presents, all_hidden_states, all_self_attentions = self.encoder(
@@ -925,6 +939,7 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
             model_kwargs: Dict[str, Any],
             is_encoder_decoder: bool = False,
     ) -> Dict[str, Any]:
+        # print('ChatGLMForConditionalGeneration _update_model_kwargs_for_generation')
         # update past_key_values
         cache_name, cache = self._extract_past_from_model_output(outputs)
         model_kwargs[cache_name] = cache
@@ -954,13 +969,22 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
             past_key_values: Optional[torch.Tensor] = None,
             attention_mask: Optional[torch.Tensor] = None,
             position_ids: Optional[torch.Tensor] = None,
+            inputs_embeds: Optional[torch.Tensor] = None,
             use_cache: Optional[bool] = None,
             is_first_forward: bool = True,
             **kwargs
     ) -> dict:
+        # print('ChatGLMForConditionalGeneration prepare_inputs_for_generation input_ids: ', input_ids.shape)
+        # print('ChatGLMForConditionalGeneration prepare_inputs_for_generation past_key_values: ', len(past_key_values) if past_key_values is not None else 'None')
+        # print('ChatGLMForConditionalGeneration prepare_inputs_for_generation attention_mask: ', attention_mask.shape if attention_mask is not None else 'None')
+        # print('ChatGLMForConditionalGeneration prepare_inputs_for_generation position_ids: ', position_ids.shape if position_ids is not None else 'None')
+        # print('ChatGLMForConditionalGeneration prepare_inputs_for_generation inputs_embeds: ', inputs_embeds.shape if inputs_embeds is not None else 'None')
         # only last token for input_ids if past is not None
         if position_ids is None:
-            position_ids = self.get_position_ids(input_ids, device=input_ids.device)
+            if input_ids is not None:
+                position_ids = self.get_position_ids(input_ids, device=input_ids.device) # original
+            else:
+                position_ids = self.get_position_ids(attention_mask, device=attention_mask.device) # zzs added
         if not is_first_forward:
             if past_key_values is not None:
                 position_ids = position_ids[..., -1:]
@@ -970,6 +994,7 @@ class ChatGLMForConditionalGeneration(ChatGLMPreTrainedModel):
             "past_key_values": past_key_values,
             "position_ids": position_ids,
             "attention_mask": attention_mask,
+            "inputs_embeds": inputs_embeds,
             "return_last_logit": True,
             "use_cache": use_cache
         }

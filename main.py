@@ -1788,6 +1788,11 @@ class DebugLlavaForCausalLM(LlamaForCausalLM):
                     position_ids[i, :cur_len] = torch.arange(0, cur_len, dtype=position_ids.dtype, device=position_ids.device)
 
         new_input_embeds = torch.stack(new_input_embeds_padded, dim=0)
+        print('FINAL0 position_ids', position_ids.shape if position_ids is not None else 'None')
+        print('FINAL0 attention_mask', attention_mask.shape if attention_mask is not None else 'None')
+        print('FINAL0 past_key_values', past_key_values.shape if past_key_values is not None else 'None')
+        print('FINAL0 new_input_embeds', new_input_embeds.shape if new_input_embeds is not None else 'None')
+        print('FINAL0 new_labels_padded', new_labels_padded.shape if new_labels_padded is not None else 'None')
 
         if _labels is None:
             new_labels = None
@@ -1802,11 +1807,11 @@ class DebugLlavaForCausalLM(LlamaForCausalLM):
         if _position_ids is None:
             position_ids = None
 
-        # print('position_ids', position_ids.shape if position_ids is not None else 'None')
-        # print('attention_mask', attention_mask.shape if attention_mask is not None else 'None')
-        # print('past_key_values', past_key_values.shape if past_key_values is not None else 'None')
-        # print('new_input_embeds', new_input_embeds.shape if new_input_embeds is not None else 'None')
-        # print('new_labels', new_labels.shape if new_labels is not None else 'None')
+        print('FINAL position_ids', position_ids.shape if position_ids is not None else 'None')
+        print('FINAL attention_mask', attention_mask.shape if attention_mask is not None else 'None')
+        print('FINAL past_key_values', past_key_values.shape if past_key_values is not None else 'None')
+        print('FINAL new_input_embeds', new_input_embeds.shape if new_input_embeds is not None else 'None')
+        print('FINAL new_labels', new_labels.shape if new_labels is not None else 'None')
         return None, position_ids, attention_mask, past_key_values, new_input_embeds, new_labels
 
 
@@ -2732,7 +2737,7 @@ class DebugLlavaChatglm4ForCausalLM(ChatGLMForConditionalGeneration):
         return image_features
 
     def prepare_inputs_labels_for_multimodal(self, input_ids, position_ids, attention_mask, past_key_values, labels, images, image_sizes=None):
-        # print('prepare_inputs_labels_for_multimodal input_ids', input_ids.shape)
+        # print('\nprepare_inputs_labels_for_multimodal input_ids', input_ids.shape)
         if images is None or input_ids.shape[1] == 1:
             return input_ids, position_ids, attention_mask, past_key_values, None, labels
 
@@ -2881,29 +2886,44 @@ class DebugLlavaChatglm4ForCausalLM(ChatGLMForConditionalGeneration):
 
         new_input_embeds = torch.stack(new_input_embeds_padded, dim=0)
 
-        # print('prepare0 position_ids', position_ids.shape if position_ids is not None else 'None')
-        # print('prepare0 attention_mask', attention_mask.shape if attention_mask is not None else 'None')
-        # print('prepare0 past_key_values', past_key_values.shape if past_key_values is not None else 'None')
-        # print('prepare0 new_input_embeds', new_input_embeds.shape if new_input_embeds is not None else 'None')
-        # print('prepare0 new_labels', new_labels_padded.shape if new_labels_padded is not None else 'None')
-        if _labels is None:
-            new_labels = None
+        # print('FINAL0 position_ids', position_ids.shape if position_ids is not None else 'None')
+        # print('FINAL0 attention_mask', attention_mask.shape if attention_mask is not None else 'None')
+        # print('FINAL0 past_key_values', past_key_values.shape if past_key_values is not None else 'None')
+        # print('FINAL0 new_input_embeds', new_input_embeds.shape if new_input_embeds is not None else 'None')
+        # print('FINAL0 new_labels_padded', new_labels_padded.shape if new_labels_padded is not None else 'None')
+
+        if False:
+            if _labels is None:
+                new_labels = None
+            else:
+                new_labels = new_labels_padded
+
+            if _attention_mask is None:
+                attention_mask = None
+            else:
+                attention_mask = attention_mask.to(dtype=_attention_mask.dtype)
+
+            if _position_ids is None:
+                position_ids = None
         else:
-            new_labels = new_labels_padded
+            if _labels is None:
+                new_labels = None
+            else:
+                new_labels = new_labels_padded
 
-        if _attention_mask is None:
-            attention_mask = None
-        else:
-            attention_mask = attention_mask.to(dtype=_attention_mask.dtype)
+            if _attention_mask is None:
+                attention_mask = None
+            else:
+                attention_mask = attention_mask.to(dtype=_attention_mask.dtype)
 
-        if _position_ids is None:
-            position_ids = None
+            # if _position_ids is None:
+            #     position_ids = None
 
-        # print('prepare position_ids', position_ids.shape if position_ids is not None else 'None')
-        # print('prepare attention_mask', attention_mask.shape if attention_mask is not None else 'None')
-        # print('prepare past_key_values', past_key_values.shape if past_key_values is not None else 'None')
-        # print('prepare new_input_embeds', new_input_embeds.shape if new_input_embeds is not None else 'None')
-        # print('prepare new_labels', new_labels.shape if new_labels is not None else 'None')
+        # print('FINAL position_ids', position_ids.shape if position_ids is not None else 'None')
+        # print('FINAL attention_mask', attention_mask.shape if attention_mask is not None else 'None')
+        # print('FINAL past_key_values', past_key_values.shape if past_key_values is not None else 'None')
+        # print('FINAL new_input_embeds', new_input_embeds.shape if new_input_embeds is not None else 'None')
+        # print('FINAL new_labels', new_labels.shape if new_labels is not None else 'None')
         return None, position_ids, attention_mask, past_key_values, new_input_embeds, new_labels
 
 
@@ -2921,6 +2941,7 @@ class DebugLlavaChatglm4ForCausalLM(ChatGLMForConditionalGeneration):
         images: Optional[torch.FloatTensor] = None,
         image_sizes: Optional[List[List[int]]] = None,
         return_dict: Optional[bool] = None,
+        return_last_logit: Optional[bool] = False,
         cache_position=None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
 
@@ -2938,6 +2959,7 @@ class DebugLlavaChatglm4ForCausalLM(ChatGLMForConditionalGeneration):
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_last_logit=return_last_logit,
             return_dict=return_dict,
         )
 
@@ -2953,20 +2975,25 @@ class DebugLlavaChatglm4ForCausalLM(ChatGLMForConditionalGeneration):
         attention_mask = kwargs.pop("attention_mask", None)
         if "inputs_embeds" in kwargs:
             raise NotImplementedError("`inputs_embeds` is not supported")
-
-        # print('DebugLlavaGemma2ForCausalLM0 generate attention_mask', attention_mask.shape if attention_mask is not None else 'None')
+        # old_inputs = inputs
         if images is not None:
             (inputs, position_ids, attention_mask, _, inputs_embeds, _) = self.prepare_inputs_labels_for_multimodal(inputs, position_ids, attention_mask, None, None, images, image_sizes=image_sizes)
         else:
             inputs_embeds = self.model.embed_tokens(inputs)
-        # print('DebugLlavaGemma2ForCausalLM1 generate attention_mask', attention_mask.shape if attention_mask is not None else 'None')
+        # print('DebugLlavaChatglm4ForCausalLM generate attention_mask', attention_mask.shape if attention_mask is not None else 'None')
+        # print('DebugLlavaChatglm4ForCausalLM generate position_ids', position_ids.shape if position_ids is not None else 'None')
+        # print('DebugLlavaChatglm4ForCausalLM generate inputs_embeds', inputs_embeds.shape if inputs_embeds is not None else 'None')
         return super().generate(position_ids=position_ids, attention_mask=attention_mask, inputs_embeds=inputs_embeds, **kwargs)
 
     def prepare_inputs_for_generation(self, input_ids, past_key_values=None, inputs_embeds=None, **kwargs):
         images = kwargs.pop("images", None)
         image_sizes = kwargs.pop("image_sizes", None)
-        # attention_mask = kwargs['attention_mask'] if 'attention_mask' in kwargs else None
-        # print('DebugLlavaGemma2ForCausalLM0 prepare_inputs_for_generation attention_mask', attention_mask.shape if attention_mask is not None else 'None')
+        position_ids = kwargs['position_ids'] if 'position_ids' in kwargs else None
+        attention_mask = kwargs['attention_mask'] if 'attention_mask' in kwargs else None
+        # print('DebugLlavaChatglm4ForCausalLM prepare_inputs_for_generation input_ids', input_ids.shape if input_ids is not None else 'None')
+        # print('DebugLlavaChatglm4ForCausalLM prepare_inputs_for_generation position_ids', position_ids.shape if position_ids is not None else 'None')
+        # print('DebugLlavaChatglm4ForCausalLM prepare_inputs_for_generation attention_mask', attention_mask.shape if attention_mask is not None else 'None')
+        # print('DebugLlavaChatglm4ForCausalLM prepare_inputs_for_generation inputs_embeds', inputs_embeds.shape if inputs_embeds is not None else 'None')
         inputs = super().prepare_inputs_for_generation(input_ids, past_key_values=past_key_values, inputs_embeds=inputs_embeds, **kwargs)
         if images is not None:
             inputs["images"] = images
@@ -4214,7 +4241,7 @@ def train_with_hf_trainer():
 def load_pretrained_model(model_path, cache_dir, conv_version, load_8bit, load_4bit, device=None, attn_implementation='eager'):
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
+    tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False, trust_remote_code=True)
 
     device = torch.device("cpu") if device is None else device
     kwargs = {
@@ -4243,6 +4270,8 @@ def load_pretrained_model(model_path, cache_dir, conv_version, load_8bit, load_4
         model = DebugLlavaGemma2ForCausalLM.from_pretrained(model_path, config=cfg_pretrained, **kwargs)
     elif conv_version == 'qwen_2':
         model = DebugLlavaQwen2ForCausalLM.from_pretrained(model_path, config=cfg_pretrained, **kwargs)
+    elif conv_version == 'chatglm_4':
+        model = DebugLlavaChatglm4ForCausalLM.from_pretrained(model_path, config=cfg_pretrained, **kwargs)
     model.initialize_vision_modules(device=device, dtype=torch.float16)
     model.to(device)
     model.eval()

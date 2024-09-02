@@ -162,6 +162,16 @@ class Conversation:
                     chat_template_messages.append({"role": role, "content": message})
             ret = chat_template_messages
 
+        elif self.sep_style == SeparatorStyle.GEMMA_2:
+            chat_template_messages = [{"role": "system", "content": self.system}]
+            for role, message in messages:
+                if message:
+                    if type(message) is tuple:
+                        message, images = message
+                        message = "<image>" * len(images) + message
+                    chat_template_messages.append({"role": role, "content": message})
+            ret = chat_template_messages
+
         elif self.sep_style == SeparatorStyle.MPT:
             ret = self.system + self.sep
             for role, message in messages:
@@ -1609,9 +1619,9 @@ class DebugLlavaForCausalLM(LlamaForCausalLM):
         super().__init__(config) 
 
     def initialize_vision_modules(self, device="auto", dtype=torch.bfloat16, mm_projector_type="mlp2x_gelu", pretrain_ckpt_path=None):
-        vision_tower_name_or_ckpt = 'openai/clip-vit-large-patch14-336'
-        self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
-        self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_ckpt).to(device=device, dtype=dtype)
+        vision_tower_name_or_path = 'openai/clip-vit-large-patch14-336'
+        self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_path)
+        self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_path).to(device=device, dtype=dtype)
 
         if mm_projector_type == 'linear':
             self.mm_projector = nn.Linear(self.vision_tower.config.hidden_size, self.config.hidden_size, device=device, dtype=dtype)
@@ -1967,9 +1977,9 @@ class DebugLlavaConchForCausalLM(DebugLlavaForCausalLM):
     config_class = DebugLlavaConchConfig
 
     def initialize_vision_modules(self, device="auto", dtype=torch.bfloat16, mm_projector_type="mlp2x_gelu", pretrain_ckpt_path=None):
-        # vision_tower_name_or_ckpt = 'openai/clip-vit-large-patch14-336'
-        # self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
-        # self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_ckpt).to(device=device, dtype=dtype)
+        # vision_tower_name_or_path = 'openai/clip-vit-large-patch14-336'
+        # self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_path)
+        # self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_path).to(device=device, dtype=dtype)
         self.image_processor = CoCaImageProcessor()
         self.vision_tower = CoCaVisionModel()
         self.vision_tower.load_pretrained()
@@ -2015,9 +2025,9 @@ class DebugLlavaSiglipForCausalLM(DebugLlavaForCausalLM):
     config_class = DebugLlavaSiglipConfig
 
     def initialize_vision_modules(self, device="auto", dtype=torch.bfloat16, mm_projector_type="mlp2x_gelu", pretrain_ckpt_path=None):
-        vision_tower_name_or_ckpt = 'google/siglip-so400m-patch14-384'
-        self.image_processor = SiglipImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
-        self.vision_tower = SiglipVisionModel.from_pretrained(vision_tower_name_or_ckpt).to(device=device, dtype=dtype)
+        vision_tower_name_or_path = 'google/siglip-so400m-patch14-384'
+        self.image_processor = SiglipImageProcessor.from_pretrained(vision_tower_name_or_path)
+        self.vision_tower = SiglipVisionModel.from_pretrained(vision_tower_name_or_path).to(device=device, dtype=dtype)
 
         if mm_projector_type == 'linear':
             self.mm_projector = nn.Linear(self.vision_tower.config.hidden_size, self.config.hidden_size, device=device, dtype=dtype)
@@ -2058,9 +2068,9 @@ class DebugLlavaPlipForCausalLM(DebugLlavaForCausalLM):
     config_class = DebugLlavaPlipConfig
 
     def initialize_vision_modules(self, device="auto", dtype=torch.bfloat16, mm_projector_type="mlp2x_gelu", pretrain_ckpt_path=None):
-        vision_tower_name_or_ckpt = '/data/zhongz2/temp29/debug/vinid_plip/'
-        self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
-        self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_ckpt).to(device=device, dtype=dtype)
+        vision_tower_name_or_path = '/data/zhongz2/temp29/debug/vinid_plip/'
+        self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_path)
+        self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_path).to(device=device, dtype=dtype)
 
         if mm_projector_type == 'linear':
             self.mm_projector = nn.Linear(self.vision_tower.config.hidden_size, self.config.hidden_size, device=device, dtype=dtype)
@@ -2112,9 +2122,9 @@ class DebugLlavaGemma2ForCausalLM(Gemma2ForCausalLM):
         super().__init__(config) 
 
     def initialize_vision_modules(self, device="auto", dtype=torch.bfloat16, mm_projector_type="mlp2x_gelu", pretrain_ckpt_path=None):
-        vision_tower_name_or_ckpt = 'openai/clip-vit-large-patch14-336'
-        self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
-        self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_ckpt).to(device=device, dtype=dtype)
+        vision_tower_name_or_path = 'openai/clip-vit-large-patch14-336'
+        self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_path)
+        self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_path).to(device=device, dtype=dtype)
 
         if mm_projector_type == 'linear':
             self.mm_projector = nn.Linear(self.vision_tower.config.hidden_size, self.config.hidden_size, device=device, dtype=dtype)
@@ -2406,9 +2416,9 @@ class DebugLlavaQwen2ForCausalLM(Qwen2ForCausalLM):
         super().__init__(config) 
 
     def initialize_vision_modules(self, device="auto", dtype=torch.bfloat16, mm_projector_type="mlp2x_gelu", pretrain_ckpt_path=None):
-        vision_tower_name_or_ckpt = 'openai/clip-vit-large-patch14-336'
-        self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
-        self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_ckpt).to(device=device, dtype=dtype)
+        vision_tower_name_or_path = 'openai/clip-vit-large-patch14-336'
+        self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_path)
+        self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_path).to(device=device, dtype=dtype)
 
         if mm_projector_type == 'linear':
             self.mm_projector = nn.Linear(self.vision_tower.config.hidden_size, self.config.hidden_size, device=device, dtype=dtype)
@@ -2705,9 +2715,9 @@ class DebugLlavaChatglm4ForCausalLM(ChatGLMForConditionalGeneration):
         self.model = self.transformer
 
     def initialize_vision_modules(self, device="auto", dtype=torch.bfloat16, mm_projector_type="mlp2x_gelu", pretrain_ckpt_path=None):
-        vision_tower_name_or_ckpt = 'openai/clip-vit-large-patch14-336'
-        self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
-        self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_ckpt).to(device=device, dtype=dtype)
+        vision_tower_name_or_path = 'openai/clip-vit-large-patch14-336'
+        self.image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_path)
+        self.vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_path).to(device=device, dtype=dtype)
 
         if mm_projector_type == 'linear':
             self.mm_projector = nn.Linear(self.vision_tower.config.hidden_size, self.config.hidden_size, device=device, dtype=dtype)
@@ -3013,9 +3023,9 @@ def debug():
         images.append(Image.fromarray(np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)))
 
     device_map = "auto"
-    vision_tower_name_or_ckpt = 'openai/clip-vit-large-patch14-336'
-    image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
-    vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_ckpt, device_map=device_map)
+    vision_tower_name_or_path = 'openai/clip-vit-large-patch14-336'
+    image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_path)
+    vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name_or_path, device_map=device_map)
 
     device = vision_tower.device
 
@@ -4322,8 +4332,8 @@ def test_wds():
         raise ValueError("wrong conv_version")
 
 
-    vision_tower_name_or_ckpt = 'openai/clip-vit-large-patch14-336'
-    image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_ckpt)
+    vision_tower_name_or_path = 'openai/clip-vit-large-patch14-336'
+    image_processor = CLIPImageProcessor.from_pretrained(vision_tower_name_or_path)
 
 
     data_args.image_processor = image_processor # model.image_processor

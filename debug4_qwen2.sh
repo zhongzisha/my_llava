@@ -50,10 +50,10 @@ MASTER_PORT=25200
 conv_version=qwen_2
 model_name_or_path="Qwen/Qwen2-7B-Instruct"
 model_name_or_path="Qwen/Qwen2-7B"
-vision_tower_name=google/siglip-so400m-patch14-384
-vision_tower_name=openai/clip-vit-large-patch14-336
+vision_tower_name_or_path=google/siglip-so400m-patch14-384
+vision_tower_name_or_path=openai/clip-vit-large-patch14-336
 pretrain_ckpt_path=
-output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/${model_name_or_path}/${vision_tower_name}/${conv_version}/finetune
+output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/${model_name_or_path}/${vision_tower_name_or_path}/${conv_version}/finetune
 MASTER_PORT=25201
 per_device_train_batch_size=2
 gradient_accumulation_steps=8
@@ -82,6 +82,7 @@ torchrun \
     main.py \
     --deepspeed ${deepspeed_config}.json \
     --model_name_or_path ${model_name_or_path} \
+    --vision_tower_name_or_path ${vision_tower_name_or_path} \
     --data_path $FINETUNE_DATA \
     --image_folder $IMAGE_FOLDER \
     ${data_type_str} \

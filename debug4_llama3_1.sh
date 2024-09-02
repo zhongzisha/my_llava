@@ -35,6 +35,7 @@ num_workers=4
 conv_version=plain
 
 conv_version=llama_3_1
+vision_tower_name_or_path=openai/clip-vit-large-patch14-336
 model_name_or_path="meta-llama/Meta-Llama-3.1-8B-Instruct"
 pretrain_ckpt_path="--pretrain_ckpt_path /data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_plain/mm_projector.bin"
 pretrain_ckpt_path=
@@ -81,6 +82,7 @@ torchrun \
     main.py \
     --deepspeed ${deepspeed_config}.json \
     --model_name_or_path ${model_name_or_path} \
+    --vision_tower_name_or_path ${vision_tower_name_or_path} \
     --data_path $FINETUNE_DATA \
     --image_folder $IMAGE_FOLDER \
     ${data_type_str} \

@@ -829,6 +829,27 @@ if True:
     print(f"{probs[0][0]:.1%} that image 0 is '{texts[0]}'")
 
 
+    import torch
+    from chatglm4 import ChatGLM4Tokenizer, ChatGLMConfig, ChatGLMForConditionalGeneration
+    model_name_or_path = "THUDM/glm-4-9b-chat" 
+    device = "cuda"
+    cache_dir = "/data/zhongz2/data/cache_dir"
+    tokenizer = ChatGLM4Tokenizer.from_pretrained(model_name_or_path, cache_dir=cache_dir, trust_remote_code=True)
+    model = ChatGLMForConditionalGeneration.from_pretrained(model_name_or_path, cache_dir=cache_dir, trust_remote_code=True)
 
 
+    query = "你好"
+    inputs = tokenizer.apply_chat_template([{"role": "user", "content": query}],
+                                        add_generation_prompt=True,
+                                        tokenize=True,
+                                        return_tensors="pt",
+                                        return_dict=True
+                                        )
+    inputs = inputs.to(device)
+    model.to(device).eval()
 
+    gen_kwargs = {"max_length": 2500, "do_sample": True, "top_k": 1}
+    with torch.no_grad():
+        outputs = model.generate(**inputs, **gen_kwargs)
+        outputs = outputs[:, inputs['input_ids'].shape[1]:]
+        print(tokenizer.decode(outputs[0], skip_special_tokens=True))

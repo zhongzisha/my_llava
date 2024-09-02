@@ -14,16 +14,19 @@ CONV_VERSION=llama_3_1
 MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/Qwen/Qwen2-7B/openai/clip-vit-large-patch14-336/qwen_2/finetune
 MODEL_NAME=llava_qwen_2
 CONV_VERSION=qwen_2
-MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/THUDM/glm-4-9b-chat/openai/clip-vit-large-patch14-336/chatglm_4/finetune/checkpoint-1400
+MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/THUDM/glm-4-9b-chat/openai/clip-vit-large-patch14-336/chatglm_4/finetune/checkpoint-2500
 MODEL_NAME=llava_chatglm_4
 CONV_VERSION=chatglm_4
+# MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/google/gemma-2-9b-it/openai/clip-vit-large-patch14-336/gemma_2/finetune/checkpoint-600
+# MODEL_NAME=llava_gemma_2
+# CONV_VERSION=gemma_2
 CUDA_VISIBLE_DEVICES=1 python serve_cli.py \
 --model_path ${MODEL_PATH} \
 --model_name ${MODEL_NAME} \
 --conv_version ${CONV_VERSION} \
 --device "cuda" \
 --attn_implementation "sdpa" \
---temperature 0.8 --top_p 0.8 --top_k 1 --debug --max-new-tokens 128 \
+--temperature 0.8 --top_p 0.8 --top_k 1 --max-new-tokens 128 \
 --image-file ./examples/extreme_ironing.jpg
 
 

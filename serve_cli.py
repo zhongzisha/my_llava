@@ -64,7 +64,7 @@ def main(args):
         ]
 
     roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
-    messages = [{'role': 'system', 'content': conv.system}]
+    messages = [] # [{'role': 'system', 'content': conv.system}]
 
     print('image_file', args.image_file)
     image = load_image(args.image_file)
@@ -124,7 +124,7 @@ def main(args):
                 eos_token_id=terminators,
                 # no_repeat_ngram_size=2,
                 repetition_penalty=1.5,
-                num_beams=1,
+                # num_beams=3,
                 streamer=streamer,
                 use_cache=True
             ) 

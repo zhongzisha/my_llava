@@ -19,8 +19,6 @@ VIDEO_FOLDER="${MYTMP_DIR}"
 PRETRAIN_DATA="${JSON_FOLDER}/llava_image_.json ${JSON_FOLDER}/llava_med_alignment_500k_cleaned.json"
 FINETUNE_DATA="${JSON_FOLDER}/llava_med_instruct_60k_cleaned.json ${JSON_FOLDER}/la_tune_256k.json ${JSON_FOLDER}/lrv_tune_331k.json ${JSON_FOLDER}/lvis_tune_220k_.json ${JSON_FOLDER}/svit_tune_157k.json ${JSON_FOLDER}/nlp_tune.json"
 FINETUNE_DATA="${JSON_FOLDER}/llava_med_instruct_60k_cleaned.json ${JSON_FOLDER}/llava_image_tune_cleaned.json"
-# PRETRAIN_DATA="${JSON_FOLDER}/llava_image_debug1.json"
-# FINETUNE_DATA="${JSON_FOLDER}/llava_image_tune_cleaned_debug1.json"
 save_steps=100
 num_train_epochs=1
 
@@ -41,8 +39,13 @@ output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/fine
 
 conv_version=gemma_2
 model_name_or_path="google/gemma-2-9b-it"
-output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_${conv_version}_fixed_without_pretrain
+vision_tower_name_or_path=google/siglip-so400m-patch14-384
+vision_tower_name_or_path=openai/clip-vit-large-patch14-336
 pretrain_ckpt_path=
+output_dir=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/${model_name_or_path}/${vision_tower_name_or_path}/${conv_version}/finetune
+MASTER_PORT=25205
+per_device_train_batch_size=2
+gradient_accumulation_steps=8
 
 if [ ! -d ${output_dir} ]; then mkdir -p ${output_dir}; fi
 
@@ -68,6 +71,7 @@ torchrun \
     main.py \
     --deepspeed ${deepspeed_config}.json \
     --model_name_or_path ${model_name_or_path} \
+    --vision_tower_name_or_path ${vision_tower_name_or_path} \
     --data_path $FINETUNE_DATA \
     --image_folder $IMAGE_FOLDER \
     ${data_type_str} \

@@ -32,6 +32,7 @@ fi
 export PYTHONPATH=`pwd`:$PYTHONPATH
 
 srun --export ALL --jobid $SLURM_JOB_ID bash debug1.sh "train"
+# srun --export ALL --jobid $SLURM_JOB_ID bash debug1_onlymed.sh "train"
 
 wait
 

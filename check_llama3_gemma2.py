@@ -853,3 +853,23 @@ if True:
         outputs = model.generate(**inputs, **gen_kwargs)
         outputs = outputs[:, inputs['input_ids'].shape[1]:]
         print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

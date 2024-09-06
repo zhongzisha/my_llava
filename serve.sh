@@ -30,6 +30,21 @@ CUDA_VISIBLE_DEVICES=1 python serve_cli.py \
 --image-file ./examples/extreme_ironing.jpg
 
 
+
+python -m t_serve_controller --host 0.0.0.0 --port 10000
+python -m t_serve_gradio_web_server --controller http://localhost:10000 --model-list-mode reload
+# llava_llama_3_1
+python -m t_serve_model_worker --host 0.0.0.0 --controller-address http://localhost:10000 \
+    --port 40000 --worker http://localhost:40000 \
+    --model_path "/Users/zhongz2/down/llama_3_1_clip" \
+    --model_name "llava_llama_3_1_clip" \
+    --conv_version "llama_3_1" \
+    --cache_dir "/Users/zhongz2/down/cache_dir" \
+    --attn_implementation "sdpa" \
+    --device "mps"
+
+
+
 python -m serve_controller --host 0.0.0.0 --port 10000
 python -m serve_gradio_web_server --controller http://localhost:10000 --model-list-mode reload
 # llava_llama_3_1

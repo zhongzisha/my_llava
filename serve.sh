@@ -30,6 +30,18 @@ CUDA_VISIBLE_DEVICES=1 python serve_cli.py \
 --image-file ./examples/extreme_ironing.jpg
 
 
+export OMP_NUM_THREADS=8
+MODEL_PATH=/mnt/hidare-efs/data_20240208/llama_3_1_clip
+MODEL_NAME=llava_llama_3_1
+CONV_VERSION=llama_3_1
+python t_serve_cli.py \
+--model_path ${MODEL_PATH} \
+--model_name ${MODEL_NAME} \
+--conv_version ${CONV_VERSION} \
+--device "cpu" \
+--attn_implementation "sdpa" \
+--temperature 0.2 --top_p 0.8 --top_k 1 --max-new-tokens 128 \
+--image-file ./examples/extreme_ironing.jpg
 
 python -m t_serve_controller --host 0.0.0.0 --port 10000
 python -m t_serve_gradio_web_server --controller http://localhost:10000 --model-list-mode reload
@@ -42,6 +54,14 @@ python -m t_serve_model_worker --host 0.0.0.0 --controller-address http://localh
     --cache_dir "/Users/zhongz2/down/cache_dir" \
     --attn_implementation "sdpa" \
     --device "mps"
+python -m t_serve_model_worker --host 0.0.0.0 --controller-address http://localhost:10000 \
+    --port 40000 --worker http://localhost:40000 \
+    --model_path "/mnt/hidare-efs/data_20240208/llama_3_1_clip" \
+    --model_name "llava_llama_3_1_clip" \
+    --conv_version "llama_3_1" \
+    --cache_dir "/mnt/hidare-efs/data_20240208/cache_dir" \
+    --attn_implementation "eager" \
+    --device "cpu"
 
 
 

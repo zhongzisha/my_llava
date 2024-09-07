@@ -943,5 +943,16 @@ def load_pretrained_model(model_path, cache_dir, conv_version, load_8bit, load_4
     model.eval()
     load_sharded_checkpoint(model, model_path)
     model.to(torch.float16)
+
+    if True:
+        import intel_extension_for_pytorch as ipex
+        qconfig = ipex.quantization.get_weight_only_quant_qconfig_mapping(
+            weight_dtype=torch.quint4x2, # or torch.qint8
+            lowp_mode=ipex.quantization.WoqLowpMode.INT8, # or FP16, BF16, INT8
+        )
+        checkpoint = None
+        model_ipex = ipex.llm.optimize(model, quantization_config=qconfig, low_precision_checkpoint=checkpoint)
+        return tokenizer, model_ipex, model.image_processor 
+
     return tokenizer, model, model.image_processor 
 

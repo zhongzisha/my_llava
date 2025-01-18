@@ -8,7 +8,7 @@ module load gcc/11.3.0
 
 MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/meta-llama/Meta-Llama-3.1-8B-Instruct/google/siglip-so400m-patch14-384/llama_3_1/finetune
 # MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_llama_3_1_without_pretrain_conch/checkpoint-3500
-# MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/meta-llama/Meta-Llama-3.1-8B-Instruct/openai/clip-vit-large-patch14-336/llama_3_1/finetune
+MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/meta-llama/Meta-Llama-3.1-8B-Instruct/openai/clip-vit-large-patch14-336/llama_3_1/finetune
 MODEL_NAME=llava_llama_3_1
 CONV_VERSION=llama_3_1
 MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/Qwen/Qwen2-7B/openai/clip-vit-large-patch14-336/qwen_2/finetune
@@ -20,7 +20,7 @@ CONV_VERSION=chatglm_4
 # MODEL_PATH=/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/google/gemma-2-9b-it/openai/clip-vit-large-patch14-336/gemma_2/finetune/checkpoint-600
 # MODEL_NAME=llava_gemma_2
 # CONV_VERSION=gemma_2
-CUDA_VISIBLE_DEVICES=1 python serve_cli.py \
+CUDA_VISIBLE_DEVICES=0 python serve_cli.py \
 --model_path ${MODEL_PATH} \
 --model_name ${MODEL_NAME} \
 --conv_version ${CONV_VERSION} \

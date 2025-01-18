@@ -61,6 +61,7 @@ class SeparatorStyle(Enum):
     PLAIN = auto()
     LLAMA_3 = auto()
     LLAMA_3_1 = auto()
+    LLAMA_3_3 = auto()
     GEMMA_2 = auto()
     QWEN_2 = auto()
     CHATGLM_4 = auto()
@@ -282,6 +283,103 @@ if False:
     # For llama3
     has_image = True
     conversation = conv_llama_3_1
+    if True:
+        conv = conversation
+        roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
+
+        # Apply prompt templates
+        conversations = []
+        for i, source in enumerate(sources):
+            if roles[source[0]["from"]] != conv.roles[0]:
+                # Skip the first one if it is not from human
+                source = source[1:]
+
+            messages = [{'role': 'system', 'content': conv.system}]
+            for j, sentence in enumerate(source):
+                role = roles[sentence["from"]]
+                assert role == conv.roles[j % 2], f"{i}"
+                messages.append({'role': role, 'content': sentence["value"]})
+            conversations.append(
+                tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True
+                ))
+
+        input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
+
+        targets = input_ids.clone()
+
+        # Mask targets 
+        # sep = conv.sep + conv.roles[1] + ": "
+        for j, (conversation, target, input_id) in enumerate(zip(conversations, targets, input_ids)):
+            total_len = int(target.ne(tokenizer.pad_token_id).sum())
+
+            rounds = conversation.split(conv.sep)
+            cur_len = 0 
+            target[:] = IGNORE_INDEX
+            for i, rou in enumerate(rounds):
+                if rou == "":
+                    break
+                
+                parts = rou.split(conv.sep2)
+                rou_len = len(tokenizer_image_token(rou+conv.sep, tokenizer))  # if add_generation_prompt=True
+                # rou_len = len(tokenizer_image_token(rou+conv.sep if i!=len(rounds)-1 else rou, tokenizer))  # 
+                if i!=0:
+                    rou_len -= 1
+                    pass
+                else:
+                    cur_len += rou_len
+                    continue
+
+                ans_len = len(tokenizer_image_token(parts[0], tokenizer)) - 1
+                target[cur_len : cur_len + ans_len] = input_id[cur_len : cur_len + ans_len]
+
+                cur_len += rou_len    
+
+            if cur_len < tokenizer.model_max_length:
+                if cur_len != total_len:
+                    target[:] = IGNORE_INDEX
+                    print(
+                        f"WARNING: tokenization mismatch: {cur_len} vs. {total_len}."
+                        f" (ignored)"
+                    )
+                    
+        if input_ids[0][0] != tokenizer.bos_token_id:
+            input_ids = [torch.cat([torch.LongTensor([tokenizer.bos_token_id]), i]) for i in input_ids]
+            targets = [torch.cat([torch.LongTensor([IGNORE_INDEX]), i]) for i in targets]
+
+
+
+
+# llama-3.3
+if False:
+    tokenizer = AutoTokenizer.from_pretrained(
+        "meta-llama/Llama-3.3-70B-Instruct",
+        cache_dir=cache_dir,
+        model_max_length=model_max_length,
+        padding_side="right",
+        use_fast=False,
+    )
+    tokenizer.unk_token = "<|reserved_special_token_0|>"
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.unk_token
+
+    conv_llama_3_3 = Conversation(
+        system="You are a pirate chatbot who always responds in pirate speak!",
+        roles=("user", "assistant"),
+        version="llama_3_3",
+        messages=[],
+        offset=0,
+        sep_style=SeparatorStyle.LLAMA_3_3,
+        stop_token_ids=[128009],
+        sep='<|start_header_id|>assistant<|end_header_id|>\n\n',
+        sep2='<|start_header_id|>user<|end_header_id|>\n\n'
+    )
+
+    # For llama3
+    has_image = True
+    conversation = conv_llama_3_3
     if True:
         conv = conversation
         roles = {"human": conv.roles[0], "gpt": conv.roles[1]}

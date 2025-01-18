@@ -70,6 +70,7 @@ class SeparatorStyle(Enum):
     PLAIN = auto()
     LLAMA_3 = auto()
     LLAMA_3_1 = auto()
+    LLAMA_3_3 = auto()
     GEMMA_2 = auto()
     QWEN_2 = auto()
     MPT = auto()
@@ -132,7 +133,7 @@ class Conversation:
                 else:
                     ret += role + ":"
 
-        elif self.sep_style == SeparatorStyle.LLAMA_3_1:
+        elif self.sep_style in [SeparatorStyle.LLAMA_3_1, SeparatorStyle.LLAMA_3_3]:
             chat_template_messages = [{"role": "system", "content": self.system}]
             for role, message in messages:
                 if message:
@@ -319,6 +320,18 @@ conv_templates = {
         messages=[],
         offset=0,
         sep_style=SeparatorStyle.LLAMA_3_1,
+        stop_token_ids=[128009],
+        sep='<|start_header_id|>assistant<|end_header_id|>\n\n',
+        sep2='<|start_header_id|>user<|end_header_id|>\n\n',
+        stop_str='<|eot_id|>'
+    ), 
+    'llama_3_3': Conversation(
+        system="You are a pirate chatbot who always responds in pirate speak!",
+        roles=("user", "assistant"),
+        version="llama_3_3",
+        messages=[],
+        offset=0,
+        sep_style=SeparatorStyle.LLAMA_3_3,
         stop_token_ids=[128009],
         sep='<|start_header_id|>assistant<|end_header_id|>\n\n',
         sep2='<|start_header_id|>user<|end_header_id|>\n\n',
@@ -528,6 +541,91 @@ def preprocess_llama_3(
 
 
 def preprocess_llama_3_1(
+    sources,
+    tokenizer: transformers.PreTrainedTokenizer,
+    conversation: Conversation,
+    has_image: bool = False
+) -> Dict:
+    conv = conversation
+    roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
+
+    # Apply prompt templates
+    conversations = []
+    for i, source in enumerate(sources):
+        if roles[source[0]["from"]] != conv.roles[0]:
+            # Skip the first one if it is not from human
+            source = source[1:]
+
+        messages = [{'role': 'system', 'content': conv.system}]
+        for j, sentence in enumerate(source):
+            role = roles[sentence["from"]]
+            assert role == conv.roles[j % 2], f"{i}"
+            messages.append({'role': role, 'content': sentence["value"]})
+        conversations.append(
+            tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True
+            ))
+    if has_image:
+        input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
+    else:
+        input_ids = tokenizer(
+            conversations,
+            return_tensors="pt",
+            padding="longest",
+            max_length=tokenizer.model_max_length,
+            truncation=True,
+        ).input_ids
+    targets = input_ids.clone()
+
+    # Mask targets 
+    # sep = conv.sep + conv.roles[1] + ": "
+    for j, (conversation, target, input_id) in enumerate(zip(conversations, targets, input_ids)):
+        total_len = int(target.ne(tokenizer.pad_token_id).sum())
+
+        rounds = conversation.split(conv.sep)
+        cur_len = 0 
+        target[:] = IGNORE_INDEX
+        for i, rou in enumerate(rounds):
+            if rou == "":
+                break
+            
+            parts = rou.split(conv.sep2)
+            rou_len = len(tokenizer_image_token(rou+conv.sep, tokenizer))  # if add_generation_prompt=True
+            # rou_len = len(tokenizer_image_token(rou+conv.sep if i!=len(rounds)-1 else rou, tokenizer))  # 
+            if i!=0:
+                rou_len -= 1
+                pass
+            else:
+                cur_len += rou_len
+                continue
+
+            ans_len = len(tokenizer_image_token(parts[0], tokenizer)) - 1
+            target[cur_len : cur_len + ans_len] = input_id[cur_len : cur_len + ans_len]
+
+            cur_len += rou_len    
+
+        if cur_len < tokenizer.model_max_length:
+            if cur_len != total_len:
+                target[:] = IGNORE_INDEX
+                print(
+                    f"WARNING: tokenization mismatch: {cur_len} vs. {total_len}."
+                    f" (ignored)"
+                )
+                
+    if tokenizer.bos_token_id is not None and input_ids[0][0] != tokenizer.bos_token_id:
+        input_ids = [torch.cat([torch.LongTensor([tokenizer.bos_token_id]), i]) for i in input_ids]
+        targets = [torch.cat([torch.LongTensor([IGNORE_INDEX]), i]) for i in targets]
+
+    return dict(
+        input_ids=input_ids,
+        labels=targets,
+    )
+
+
+
+def preprocess_llama_3_3(
     sources,
     tokenizer: transformers.PreTrainedTokenizer,
     conversation: Conversation,
@@ -891,6 +989,8 @@ def preprocess(
         return preprocess_llama_3(sources, tokenizer, conversation=conversation, has_image=has_image)
     if conversation.sep_style == SeparatorStyle.LLAMA_3_1:
         return preprocess_llama_3_1(sources, tokenizer, conversation=conversation, has_image=has_image)
+    if conversation.sep_style == SeparatorStyle.LLAMA_3_3:
+        return preprocess_llama_3_3(sources, tokenizer, conversation=conversation, has_image=has_image)
     if conversation.sep_style == SeparatorStyle.GEMMA_2:
         return preprocess_gemma_2(sources, tokenizer, conversation=conversation, has_image=has_image)
     if conversation.sep_style == SeparatorStyle.QWEN_2:
@@ -3825,6 +3925,45 @@ def test_llama_3_1():
     )
     tokenizer = AutoTokenizer.from_pretrained('meta-llama/Meta-Llama-3.1-8B-Instruct', cache_dir=cache_dir)
 
+def test_llama_3_3():
+
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    device = "cuda" # the device to load the model onto
+    cache_dir = '/data/zhongz2/data/cache_dir'
+    model = AutoModelForCausalLM.from_pretrained(
+        'meta-llama/Llama-3.3-70B-Instruct',
+        torch_dtype="auto",
+        device_map="auto",
+        cache_dir=cache_dir
+    )
+    tokenizer = AutoTokenizer.from_pretrained('meta-llama/Meta-Llama-3.1-8B-Instruct', cache_dir=cache_dir)
+
+
+    import transformers
+    import torch
+
+    model_id = "meta-llama/Llama-3.3-70B-Instruct"
+
+    pipeline = transformers.pipeline(
+        "text-generation",
+        model=model_id,
+        model_kwargs={"torch_dtype": torch.bfloat16},
+        device_map="auto",
+    )
+
+    messages = [
+        {"role": "system", "content": "You are a pirate chatbot who always responds in pirate speak!"},
+        {"role": "user", "content": "Who are you?"},
+    ]
+
+    outputs = pipeline(
+        messages,
+        max_new_tokens=256,
+    )
+    print(outputs[0]["generated_text"][-1])
+
+
+
 def test_qwen2():
     from transformers import AutoModelForCausalLM, AutoTokenizer
     device = "cuda" # the device to load the model onto
@@ -3924,6 +4063,12 @@ def eval():
         model_name_or_path = '/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_llama_3_1_with_pretrain/checkpoint-4000/'
         model_name_or_path = '/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_llama_3_1_with_pretrain/'
         eot_str = "<|eot_id|>"
+    elif conv_version == 'llama_3_3':
+        conv_version = 'llama_3_3'
+        model_name_or_path = f'/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_{conv_version}'
+        model_name_or_path = '/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_llama_3_3_with_pretrain/checkpoint-4000/'
+        model_name_or_path = '/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_llama_3_3_with_pretrain/'
+        eot_str = "<|eot_id|>"
     elif conv_version == 'gemma_2':
         model_name_or_path = '/data/zhongz2/temp29/output_llava_llama_3/pretrain_anyres_debug3/finetune_gemma_2_fixed/'
         conv_version = 'gemma_2'
@@ -3943,7 +4088,7 @@ def eval():
         "torch_dtype": torch.float16
     }
     cfg_pretrained = AutoConfig.from_pretrained(model_name_or_path)
-    if conv_version == 'llama_3' or conv_version == 'llama_3_1':
+    if conv_version == 'llama_3' or conv_version == 'llama_3_1' or conv_version == 'llama_3_3':
         model = DebugLlavaForCausalLM.from_pretrained(model_name_or_path, config=cfg_pretrained, attn_implementation="flash_attention_2", **kwargs)
     elif conv_version == 'gemma_2': # eager (official) or flash_attention_2
         model = DebugLlavaGemma2ForCausalLM.from_pretrained(model_name_or_path, config=cfg_pretrained, attn_implementation="flash_attention_2", **kwargs)
@@ -3965,7 +4110,7 @@ def eval():
             self.model_config = model_config
             self.input_ids = []
             for index in range(len(self.questions)):
-                if conversation.sep_style in [SeparatorStyle.LLAMA_3, SeparatorStyle.LLAMA_3_1, SeparatorStyle.QWEN_2]:
+                if conversation.sep_style in [SeparatorStyle.LLAMA_3, SeparatorStyle.LLAMA_3_1, SeparatorStyle.LLAMA_3_3, SeparatorStyle.QWEN_2]:
                     messages = [{'role': 'system', 'content': conversation.system}]
                 else:
                     messages = []
@@ -4095,7 +4240,8 @@ def train_with_hf_trainer():
             padding_side="right",
             use_fast=False,
         )
-        tokenizer.unk_token = "<|reserved_special_token_0|>"
+        if tokenizer.unk_token is None:
+            tokenizer.unk_token = "<|reserved_special_token_0|>"
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.unk_token
     elif 'gemma' in model_args.model_name_or_path.lower():
@@ -4269,7 +4415,7 @@ def load_pretrained_model(model_path, cache_dir, conv_version, load_8bit, load_4
         kwargs["torch_dtype"] = torch.float16
 
     cfg_pretrained = AutoConfig.from_pretrained(model_path)
-    if conv_version in ['llama_3', 'llama_3_1']:
+    if conv_version in ['llama_3', 'llama_3_1', 'llama_3_3']:
         if 'conch' in cfg_pretrained.vision_tower_name_or_path.lower():
             model = DebugLlavaConchForCausalLM.from_pretrained(model_path, config=cfg_pretrained, **kwargs)
         elif 'siglip' in cfg_pretrained.vision_tower_name_or_path.lower():

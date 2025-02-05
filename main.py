@@ -1898,12 +1898,6 @@ class DebugLlavaForCausalLM(LlamaForCausalLM):
                     position_ids[i, :cur_len] = torch.arange(0, cur_len, dtype=position_ids.dtype, device=position_ids.device)
 
         new_input_embeds = torch.stack(new_input_embeds_padded, dim=0)
-        print('FINAL0 position_ids', position_ids.shape if position_ids is not None else 'None')
-        print('FINAL0 attention_mask', attention_mask.shape if attention_mask is not None else 'None')
-        print('FINAL0 past_key_values', past_key_values.shape if past_key_values is not None else 'None')
-        print('FINAL0 new_input_embeds', new_input_embeds.shape if new_input_embeds is not None else 'None')
-        print('FINAL0 new_labels_padded', new_labels_padded.shape if new_labels_padded is not None else 'None')
-
         if _labels is None:
             new_labels = None
         else:
@@ -1917,11 +1911,6 @@ class DebugLlavaForCausalLM(LlamaForCausalLM):
         if _position_ids is None:
             position_ids = None
 
-        print('FINAL position_ids', position_ids.shape if position_ids is not None else 'None')
-        print('FINAL attention_mask', attention_mask.shape if attention_mask is not None else 'None')
-        print('FINAL past_key_values', past_key_values.shape if past_key_values is not None else 'None')
-        print('FINAL new_input_embeds', new_input_embeds.shape if new_input_embeds is not None else 'None')
-        print('FINAL new_labels', new_labels.shape if new_labels is not None else 'None')
         return None, position_ids, attention_mask, past_key_values, new_input_embeds, new_labels
 
 
@@ -2996,12 +2985,6 @@ class DebugLlavaChatglm4ForCausalLM(ChatGLMForConditionalGeneration):
 
         new_input_embeds = torch.stack(new_input_embeds_padded, dim=0)
 
-        # print('FINAL0 position_ids', position_ids.shape if position_ids is not None else 'None')
-        # print('FINAL0 attention_mask', attention_mask.shape if attention_mask is not None else 'None')
-        # print('FINAL0 past_key_values', past_key_values.shape if past_key_values is not None else 'None')
-        # print('FINAL0 new_input_embeds', new_input_embeds.shape if new_input_embeds is not None else 'None')
-        # print('FINAL0 new_labels_padded', new_labels_padded.shape if new_labels_padded is not None else 'None')
-
         if False:
             if _labels is None:
                 new_labels = None
@@ -3029,11 +3012,6 @@ class DebugLlavaChatglm4ForCausalLM(ChatGLMForConditionalGeneration):
             # if _position_ids is None:
             #     position_ids = None
 
-        # print('FINAL position_ids', position_ids.shape if position_ids is not None else 'None')
-        # print('FINAL attention_mask', attention_mask.shape if attention_mask is not None else 'None')
-        # print('FINAL past_key_values', past_key_values.shape if past_key_values is not None else 'None')
-        # print('FINAL new_input_embeds', new_input_embeds.shape if new_input_embeds is not None else 'None')
-        # print('FINAL new_labels', new_labels.shape if new_labels is not None else 'None')
         return None, position_ids, attention_mask, past_key_values, new_input_embeds, new_labels
 
 
@@ -3927,20 +3905,20 @@ def test_llama_3_1():
 
 def test_llama_3_3():
 
+    import transformers
+    import torch
+
     from transformers import AutoModelForCausalLM, AutoTokenizer
     device = "cuda" # the device to load the model onto
     cache_dir = '/data/zhongz2/data/cache_dir'
+    model_id = "meta-llama/Llama-3.3-70B-Instruct"
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
     model = AutoModelForCausalLM.from_pretrained(
         'meta-llama/Llama-3.3-70B-Instruct',
         torch_dtype="auto",
         device_map="auto",
         cache_dir=cache_dir
     )
-    tokenizer = AutoTokenizer.from_pretrained('meta-llama/Meta-Llama-3.1-8B-Instruct', cache_dir=cache_dir)
-
-
-    import transformers
-    import torch
 
     model_id = "meta-llama/Llama-3.3-70B-Instruct"
 

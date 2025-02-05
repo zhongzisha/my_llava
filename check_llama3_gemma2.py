@@ -361,7 +361,8 @@ if False:
         padding_side="right",
         use_fast=False,
     )
-    tokenizer.unk_token = "<|reserved_special_token_0|>"
+    if tokenizer.unk_token is None:
+        tokenizer.unk_token = "<|reserved_special_token_0|>"
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.unk_token
 
